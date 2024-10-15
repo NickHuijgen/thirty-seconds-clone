@@ -21,6 +21,8 @@ export default class Game {
 
     turn_timer: number = 0;
 
+    is_applying_score: boolean = false;
+
     public constructor(max_score: number) {
         this.max_score = max_score;
     }
@@ -55,15 +57,26 @@ export default class Game {
     }
 
     public startTurnTimer() {
-        this.turn_timer = 30;
+        this.turn_timer = 1;
         const interval = setInterval(() => {
             this.turn_timer -= 1;
 
             if (this.turn_timer <= 0) {
                 clearInterval(interval);
+
+                this.is_applying_score = true;
             }
         }, 1000);
     }
+
+    public finishTurn(score: number) {
+        this.is_applying_score = false;
+
+        this.activeTeam().score += score;
+
+        this.goNextTurn();
+    }
+
 
     public generateTeamIndexes() {
         for (let i = this.teams.length - 1; i > 0; i--) {
