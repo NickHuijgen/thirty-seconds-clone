@@ -1,5 +1,7 @@
 <template>
-  <div>
+  <div class="relative">
+    <RemoveButton @click="removePlayer(player)" />
+
     <div>
       <label
           for="player_name"
@@ -22,12 +24,18 @@
 <script setup lang="ts">
 import Player from "~/models/Player";
 
+const emit = defineEmits(['remove-player']);
+
 const props = defineProps({
   player: {
     type: Player,
     required: true,
   },
 });
+
+function removePlayer(player) {
+  emit('remove-player', player);
+}
 </script>
 
 <style scoped>

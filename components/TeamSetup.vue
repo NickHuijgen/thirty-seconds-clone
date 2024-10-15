@@ -1,14 +1,6 @@
 <template>
   <div class="relative">
-    <div class="absolute right-1 top-0.5">
-      <span
-          class="material-icons text-sm cursor-pointer text-red-500"
-          title="Verwijder team"
-          @click="removeTeam(team)"
-      >
-        close
-      </span>
-    </div>
+    <RemoveButton @click="removeTeam(team)" />
 
     <div>
       <label
@@ -42,7 +34,10 @@
         v-for="(player, index) in team.players"
         :key="index"
     >
-      <PlayerSetup :player="player" />
+      <PlayerSetup
+          :player="player"
+          @remove-player="(player) => removePlayer(team, player)"
+      />
     </div>
   </div>
 </template>
@@ -51,6 +46,7 @@
 import Team from "~/models/Team";
 import PlayerSetup from "~/components/PlayerSetup.vue";
 import Player from "~/models/Player";
+import RemoveButton from "~/components/RemoveButton.vue";
 
 const emit = defineEmits(['remove-team']);
 
@@ -67,6 +63,10 @@ function addPlayer(team) {
 
 function removeTeam(team) {
   emit('remove-team', team);
+}
+
+function removePlayer(team, player) {
+  team.removePlayer(player);
 }
 </script>
 
