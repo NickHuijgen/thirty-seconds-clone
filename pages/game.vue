@@ -22,8 +22,8 @@
 </template>
 
 <script setup lang="ts">
-import Game from "~/models/game.ts";
-import Team from "~/models/team.ts";
+import Game from "~/models/Game.ts";
+import Team from "~/models/Team.ts";
 import SetupForm from "~/components/GameSetup.vue";
 import Player from "~/models/Player";
 import Playing from "~/components/Playing.vue";
