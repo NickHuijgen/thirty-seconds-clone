@@ -25,6 +25,7 @@
 import Game from "~/models/Game";
 import TeamSetup from "~/components/TeamSetup.vue";
 import Team from "~/models/Team";
+import Player from "~/models/Player";
 
 const props = defineProps({
   game: {
@@ -34,7 +35,11 @@ const props = defineProps({
 });
 
 function addTeam(game) {
-  game.addTeam(new Team('Team ' + (game.teams.length + 1)));
+  const team = new Team('Team ' + (game.teams.length + 1));
+
+  team.addPlayer(new Player('Speler 1'));
+
+  game.addTeam(team);
 }
 
 function removeTeam(game, team) {
