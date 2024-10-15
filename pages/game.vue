@@ -1,5 +1,8 @@
 <template>
-  <div class="h-screen overflow-y-auto w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center">
+  <div
+      class="h-screen overflow-y-auto w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center"
+      v-if="game"
+  >
     <div class="my-auto bg-white p-4 rounded-md shadow-2xl">
       <SetupForm
           v-if="!game.is_in_progress"
