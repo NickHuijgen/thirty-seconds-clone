@@ -1,19 +1,21 @@
-export default class Player {
-    name: string
-    score: number
+import Player from './Player';
 
-    players: Player[]
+export default class Team {
+    name: string;
+    score: number;
+    players: Player[];
 
     public constructor(name: string) {
-        this.name = name
-        this.score = 0
+        this.name = name;
+        this.score = 0;
+        this.players = [];
     }
 
     public addPlayer(player: Player) {
-        this.players.push(player)
+        this.players.push(player);
     }
 
     public removePlayer(player: Player) {
-        this.players = this.players.filter(p => p !== player)
+        this.players = this.players.filter(p => p !== player);
     }
 }

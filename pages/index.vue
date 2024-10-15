@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 function startGame() {
-  console.log('Game started');
+  window.location.href = '/game';
 }
 </script>
 
