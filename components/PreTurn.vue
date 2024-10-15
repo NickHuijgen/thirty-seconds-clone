@@ -29,7 +29,7 @@
         {{ team.name }}:
       </div>
       <div>
-        {{ team.score }}
+        {{ team.score }} / {{ game.max_score }}
       </div>
     </div>
   </div>
