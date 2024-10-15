@@ -19,7 +19,7 @@
     </button>
   </div>
 
-  <div class="py-4">
+  <div class="pt-4">
     <div
         v-for="(team, index) in game.teams.sort((a, b) => b.score - a.score)"
         :key="index"
