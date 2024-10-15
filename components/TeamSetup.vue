@@ -1,6 +1,9 @@
 <template>
   <div class="relative">
-    <RemoveButton @click="removeTeam()" />
+    <RemoveButton
+        :can-remove="canRemove"
+        @click="removeTeam()"
+    />
 
     <div>
       <label
@@ -38,6 +41,7 @@
         <PlayerSetup
             :player="player"
             @remove-player="removePlayer(team, player)"
+            :can-remove="team.players.length > 1"
         />
       </div>
     </div>
@@ -55,6 +59,11 @@ const emit = defineEmits(['remove-team']);
 const props = defineProps({
   team: {
     type: Team,
+    required: true,
+  },
+
+  canRemove: {
+    type: Boolean,
     required: true,
   },
 });

@@ -16,6 +16,7 @@
       <TeamSetup
           :team="team"
           @remove-team="removeTeam(game, team)"
+          :can-remove="game.teams.length > 1"
       />
     </div>
   </div>
