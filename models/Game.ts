@@ -19,6 +19,8 @@ export default class Game {
     available_media: string[] = [];
     available_brands: string[] = [];
 
+    turn_timer: number = 0;
+
     public constructor(max_score: number) {
         this.max_score = max_score;
     }
@@ -45,6 +47,17 @@ export default class Game {
 
     public start() {
         this.goNextTurn();
+    }
+
+    public startTurnTimer() {
+        this.turn_timer = 30;
+        const interval = setInterval(() => {
+            this.turn_timer -= 1;
+
+            if (this.turn_timer <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
     }
 
     public generateTeamIndexes() {

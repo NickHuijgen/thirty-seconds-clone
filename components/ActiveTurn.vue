@@ -1,13 +1,6 @@
 <template>
   <div>
-    <PreTurn
-      v-if="game.turn_timer === 0"
-      :game="game"
-    />
-    <ActiveTurn
-      v-else
-      :game="game"
-    />
+    {{ game.turn_timer }}
   </div>
 </template>
 
