@@ -10,4 +10,8 @@ export default class Player {
     public addTeam(team: Team) {
         this.teams.push(team)
     }
+
+    public removeTeam(team: Team) {
+        this.teams = this.teams.filter(t => t !== team)
+    }
 }

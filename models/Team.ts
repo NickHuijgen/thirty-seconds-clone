@@ -12,4 +12,8 @@ export default class Player {
     public addPlayer(player: Player) {
         this.players.push(player)
     }
+
+    public removePlayer(player: Player) {
+        this.players = this.players.filter(p => p !== player)
+    }
 }
