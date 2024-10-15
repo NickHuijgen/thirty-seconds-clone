@@ -8,11 +8,16 @@
       Voeg team toe
     </button>
 
-    <div
-        v-for="(team, index) in game.teams"
-        :key="index"
-    >
-      <TeamSetup :team="team" />
+    <div class="border-2 p-4 shadow-2xl">
+      <div
+          v-for="(team, index) in game.teams"
+          :key="index"
+      >
+        <TeamSetup
+            :team="team"
+            @remove-team="(team) => removeTeam(game, team)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -31,6 +36,10 @@ const props = defineProps({
 
 function addTeam(game) {
   game.addTeam(new Team('Team ' + (game.teams.length + 1)));
+}
+
+function removeTeam(game, team) {
+  game.removeTeam(team);
 }
 </script>
 

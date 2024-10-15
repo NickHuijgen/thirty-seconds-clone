@@ -1,9 +1,19 @@
 <template>
-  <div>
+  <div class="relative">
+    <div class="absolute right-1 top-0.5">
+      <span
+          class="material-icons text-sm cursor-pointer text-red-500"
+          title="Verwijder team"
+          @click="removeTeam(team)"
+      >
+        close
+      </span>
+    </div>
+
     <div>
       <label
           for="team_name"
-          class="block mb-2 text-sm"
+          class="block mb-1"
       >
         Team naam
       </label>
@@ -17,7 +27,9 @@
       >
     </div>
 
-    {{ team }}
+    <p>
+      Spelers
+    </p>
     <button
         type="button"
         class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
@@ -40,6 +52,8 @@ import Team from "~/models/Team";
 import PlayerSetup from "~/components/PlayerSetup.vue";
 import Player from "~/models/Player";
 
+const emit = defineEmits(['remove-team']);
+
 const props = defineProps({
   team: {
     type: Team,
@@ -49,6 +63,10 @@ const props = defineProps({
 
 function addPlayer(team) {
   team.addPlayer(new Player('Player ' + (team.players.length + 1)));
+}
+
+function removeTeam(team) {
+  emit('remove-team', team);
 }
 </script>
 
