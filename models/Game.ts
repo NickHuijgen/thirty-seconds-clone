@@ -4,6 +4,7 @@ export default class Game {
     max_score: number;
     teams: Team[] = [];
     is_in_progress: boolean = false;
+    active_team_index: number = 0;
 
     public constructor(max_score: number) {
         this.max_score = max_score;
@@ -35,5 +36,15 @@ export default class Game {
 
             team.generatePlayerIndexes();
         });
+    }
+
+    public goNextTurn() {
+        this.active_team_index = (this.active_team_index + 1) % this.teams.length;
+
+        this.teams[this.active_team_index].goNextTurn();
+    }
+
+    public activeTeam() {
+        return this.teams[this.active_team_index];
     }
 }

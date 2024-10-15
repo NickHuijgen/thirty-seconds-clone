@@ -1,6 +1,14 @@
 <template>
   <div>
-    {{ game }}
+    <div>
+      <p class="text-center">
+        {{ game.activeTeam().name }} is aan de beurt
+      </p>
+
+      <p class="text-xl text-center">
+        Geef de telefoon aan <b>{{ game.activeTeam().activePlayer().name }}</b>
+      </p>
+    </div>
   </div>
 </template>
 

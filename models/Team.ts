@@ -4,8 +4,8 @@ export default class Team {
     name: string;
     score: number;
     players: Player[];
-    is_playing: boolean = false;
     index: number = 0;
+    active_player_index: number = 0;
 
     public constructor(name: string) {
         this.name = name;
@@ -32,5 +32,13 @@ export default class Team {
         this.players.forEach((player, index) => {
             player.index = index;
         });
+    }
+
+    public goNextTurn() {
+        this.active_player_index = (this.active_player_index + 1) % this.players.length;
+    }
+
+    public activePlayer() {
+        return this.players[this.active_player_index];
     }
 }
