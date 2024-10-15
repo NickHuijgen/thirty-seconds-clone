@@ -26,8 +26,13 @@
     <div
         v-for="(word, index) in game.active_words"
         :key="index"
+        class="p-2 w-full"
     >
-      {{ word }}
+      <div class="py-2 w-64 border">
+        <p class="w-full text-center">
+          {{ word }}
+        </p>
+      </div>
     </div>
   </div>
 </template>
