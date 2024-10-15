@@ -8,16 +8,15 @@
       Voeg team toe
     </button>
 
-    <div class="border-2 p-4 shadow-2xl">
-      <div
-          v-for="(team, index) in game.teams"
-          :key="index"
-      >
-        <TeamSetup
-            :team="team"
-            @remove-team="(team) => removeTeam(game, team)"
-        />
-      </div>
+    <div
+        v-for="(team, index) in game.teams"
+        :key="index"
+        class="border-2 p-4 shadow-xl my-2"
+    >
+      <TeamSetup
+          :team="team"
+          @remove-team="removeTeam(game, team)"
+      />
     </div>
   </div>
 </template>

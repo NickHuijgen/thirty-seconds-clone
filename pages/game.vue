@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import Game from "~/models/game.ts";
 import Team from "~/models/team.ts";
-import SetupForm from "~/components/SetupForm.vue";
+import SetupForm from "~/components/GameSetup.vue";
 
 const game: Game = ref(new Game(20))
 

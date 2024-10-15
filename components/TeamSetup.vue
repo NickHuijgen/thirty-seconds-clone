@@ -1,6 +1,6 @@
 <template>
   <div class="relative">
-    <RemoveButton @click="removeTeam(team)" />
+    <RemoveButton @click="removeTeam()" />
 
     <div>
       <label
@@ -30,14 +30,16 @@
       Voeg speler toe
     </button>
 
-    <div
-        v-for="(player, index) in team.players"
-        :key="index"
-    >
-      <PlayerSetup
-          :player="player"
-          @remove-player="(player) => removePlayer(team, player)"
-      />
+    <div class="shadow-2xl p-4">
+      <div
+          v-for="(player, index) in team.players"
+          :key="index"
+      >
+        <PlayerSetup
+            :player="player"
+            @remove-player="removePlayer(team, player)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -61,8 +63,8 @@ function addPlayer(team) {
   team.addPlayer(new Player('Player ' + (team.players.length + 1)));
 }
 
-function removeTeam(team) {
-  emit('remove-team', team);
+function removeTeam() {
+  emit('remove-team');
 }
 
 function removePlayer(team, player) {

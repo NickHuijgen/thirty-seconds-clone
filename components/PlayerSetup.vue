@@ -33,8 +33,8 @@ const props = defineProps({
   },
 });
 
-function removePlayer(player) {
-  emit('remove-player', player);
+function removePlayer() {
+  emit('remove-player');
 }
 </script>
 
