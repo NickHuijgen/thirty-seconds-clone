@@ -1,6 +1,6 @@
 <template>
   <div class="grid gris-cols-1 sm:grid-cols-2">
-    <div class="p-4">
+    <div class="py-4">
       <p class="text-lg text-gray-600 mb-2">
         Game setup
       </p>
