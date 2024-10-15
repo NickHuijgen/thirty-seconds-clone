@@ -45,7 +45,7 @@
         <PlayerSetup
             :player="player"
             @remove-player="removePlayer(team, player)"
-            :can-remove="team.players.length > 1"
+            :can-remove="team.players.length > 2"
         />
       </div>
     </div>
@@ -72,7 +72,7 @@ const props = defineProps({
   },
 });
 
-function addPlayer(team) {
+function addPlayer(team: Team) {
   team.addPlayer(new Player('Speler ' + (team.players.length + 1)));
 }
 
@@ -80,7 +80,7 @@ function removeTeam() {
   emit('remove-team');
 }
 
-function removePlayer(team, player) {
+function removePlayer(team: Team, player: Player) {
   team.removePlayer(player);
 }
 </script>

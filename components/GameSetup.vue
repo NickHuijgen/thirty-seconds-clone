@@ -47,9 +47,19 @@
         <TeamSetup
             :team="team"
             @remove-team="removeTeam(game, team)"
-            :can-remove="game.teams.length > 1"
+            :can-remove="game.teams.length > 2"
         />
       </div>
+    </div>
+
+    <div class="pt-6 flex justify-center">
+      <button
+          type="button"
+          class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+          @click="startGame(game)"
+      >
+        Start game
+      </button>
     </div>
   </div>
 </template>
@@ -60,14 +70,14 @@ import TeamSetup from "~/components/TeamSetup.vue";
 import Team from "~/models/Team";
 import Player from "~/models/Player";
 
-const props = defineProps({
+defineProps({
   game: {
     type: Game,
     required: true,
   },
 });
 
-function addTeam(game) {
+function addTeam(game: Game) {
   const team = new Team('Team ' + (game.teams.length + 1));
 
   team.addPlayer(new Player('Speler 1'));
@@ -76,8 +86,12 @@ function addTeam(game) {
   game.addTeam(team);
 }
 
-function removeTeam(game, team) {
+function removeTeam(game: Game, team: Team) {
   game.removeTeam(team);
+}
+
+function startGame(game: Game) {
+  game.start();
 }
 </script>
 

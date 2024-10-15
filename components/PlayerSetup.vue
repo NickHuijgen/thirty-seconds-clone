@@ -23,7 +23,7 @@ import Player from "~/models/Player";
 
 const emit = defineEmits(['remove-player']);
 
-const props = defineProps({
+defineProps({
   player: {
     type: Player,
     required: true,

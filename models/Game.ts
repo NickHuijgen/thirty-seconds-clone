@@ -16,4 +16,8 @@ export default class Game {
     public removeTeam(team: Team) {
         this.teams = this.teams.filter(t => t !== team);
     }
+
+    public start() {
+        this.is_in_progress = true;
+    }
 }

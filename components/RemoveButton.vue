@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-defineEmits(['click']);
+const emit = defineEmits(['click']);
 
 defineProps({
   canRemove: {
