@@ -19,24 +19,12 @@
     </button>
   </div>
 
-  <div class="pt-4">
-    <div
-        v-for="(team, index) in game.teams.sort((a, b) => b.score - a.score)"
-        :key="index"
-        class="flex justify-between py-2"
-    >
-      <div>
-        {{ team.name }}:
-      </div>
-      <div>
-        {{ team.score }} / {{ game.max_score }}
-      </div>
-    </div>
-  </div>
+  <Leaderboard :game="game" />
 </template>
 
 <script setup lang="ts">
 import Game from "~/models/Game";
+import Leaderboard from "~/components/Leaderboard.vue";
 
 const props = defineProps({
   game: {

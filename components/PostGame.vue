@@ -4,6 +4,8 @@
       {{ game.winning_team?.name}} heeft gewonnen!
     </p>
 
+    <Leaderboard :game="game" />
+
     <div class="pt-6 flex justify-center">
       <button
           type="button"
