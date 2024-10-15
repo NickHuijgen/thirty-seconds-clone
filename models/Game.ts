@@ -22,9 +22,30 @@ export default class Game {
     turn_timer: number = 0;
 
     is_applying_score: boolean = false;
+    is_finished: boolean = false;
+
+    winning_team: Team | null = null;
 
     public constructor(max_score: number) {
         this.max_score = max_score;
+    }
+
+    public restart() {
+        this.available_people = null;
+        this.available_places = null;
+        this.available_wildcards = null;
+        this.available_media = null;
+        this.available_brands = null;
+        this.winning_team = null;
+        this.is_finished = false;
+        this.is_in_progress = false;
+        this.is_applying_score = false;
+        this.used_words = [];
+
+        this.teams.forEach(team => {
+            team.score = 0;
+            team.active_player_index = 0;
+        });
     }
 
     public addTeam(team: Team) {
@@ -74,9 +95,13 @@ export default class Game {
 
         this.activeTeam().score += score;
 
+        if (this.activeTeam().score >= this.max_score) {
+            this.is_finished = true;
+            this.winning_team = this.activeTeam();
+        }
+
         this.goNextTurn();
     }
-
 
     public generateTeamIndexes() {
         for (let i = this.teams.length - 1; i > 0; i--) {

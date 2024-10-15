@@ -5,12 +5,17 @@
   >
     <div class="my-auto bg-white p-4 rounded-md shadow-2xl">
       <SetupForm
-          v-if="!game.is_in_progress"
-          :game="game"
+        v-if="!game.is_in_progress && !game.is_finished"
+        :game="game"
       />
       <Playing
-          v-if="game.is_in_progress"
+        v-if="game.is_in_progress && !game.is_finished"
         :game="game"
+      />
+      <PostGame
+        v-if="game.is_finished"
+        :game="game"
+        @restart-game="restartGame(game)"
       />
     </div>
   </div>
@@ -22,6 +27,7 @@ import Team from "~/models/team.ts";
 import SetupForm from "~/components/GameSetup.vue";
 import Player from "~/models/Player";
 import Playing from "~/components/Playing.vue";
+import PostGame from "~/components/PostGame.vue";
 
 const game: Game = ref(new Game(50))
 
@@ -38,6 +44,10 @@ team2.addPlayer(new Player('Speler 1'));
 team2.addPlayer(new Player('Speler 2'));
 
 game.value.addTeam(team2);
+
+function restartGame(game: Game) {
+  game.restart();
+}
 
 </script>
 
