@@ -9,6 +9,6 @@ export default defineNuxtConfig({
     },
   },
   app: {
-    baseURL: 'https://nickhuijgen.github.io/thirty-seconds-clone/',
+    baseURL: '/thirty-seconds-clone/',
   }
 })
