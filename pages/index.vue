@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-full bg-gradient-to-tr from-red-100 to-blue-200 flex justify-center">
+  <div class="h-screen w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center">
     <div class="my-auto">
       <p class="font-bold text-center text-xl p-4">
         Welkom bij 30 seconden!
