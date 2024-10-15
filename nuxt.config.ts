@@ -8,8 +8,4 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
-  router: {
-    base: '/thirty-seconds-clone/',
-    mode: 'hash'
-  }
 })
