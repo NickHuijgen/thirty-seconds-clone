@@ -1,5 +1,5 @@
 <template>
-  <div class="grid gris-cols-1 sm:grid-cols-2">
+  <div class="grid gris-cols-1 sm:grid-cols-2 sm:space-x-4">
     <div class="py-4">
       <p class="text-lg text-gray-600 mb-2">
         Game setup
@@ -31,13 +31,15 @@
     </div>
 
     <div>
-      <button
-          type="button"
-          class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-          @click="addTeam(game)"
-      >
-        Voeg team toe
-      </button>
+      <div class="flex justify-center">
+        <button
+            type="button"
+            class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+            @click="addTeam(game)"
+        >
+          Voeg team toe
+        </button>
+      </div>
 
       <div
           v-for="(team, index) in game.teams"
@@ -58,7 +60,7 @@
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
           @click="finishSetup(game)"
       >
-        Start game
+        Begin Spel
       </button>
     </div>
   </div>
