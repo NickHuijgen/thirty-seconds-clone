@@ -17,7 +17,7 @@
 <script setup lang="ts">
 const emit = defineEmits(['click']);
 
-defineProps({
+const props = defineProps({
   canRemove: {
     type: Boolean,
     required: true,
@@ -25,7 +25,7 @@ defineProps({
 });
 
 function handleClick() {
-  if (!canRemove) {
+  if (!props.canRemove) {
     return;
   }
 
