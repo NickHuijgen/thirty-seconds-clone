@@ -13,10 +13,23 @@
 import Game from "~/models/game.ts";
 import Team from "~/models/team.ts";
 import SetupForm from "~/components/GameSetup.vue";
+import Player from "~/models/Player";
 
 const game: Game = ref(new Game(50))
 
-game.value.addTeam(new Team('Team 1'))
+const team1 = new Team('Team 1');
+
+team1.addPlayer(new Player('Speler 1'));
+team1.addPlayer(new Player('Speler 2'));
+
+game.value.addTeam(team1);
+
+const team2 = new Team('Team 2');
+
+team2.addPlayer(new Player('Speler 1'));
+team2.addPlayer(new Player('Speler 2'));
+
+game.value.addTeam(team2);
 
 </script>
 

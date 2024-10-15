@@ -6,12 +6,6 @@
     />
 
     <div>
-      <label
-          for="player_name"
-          class="block mb-2 text-sm"
-      >
-        Speler naam
-      </label>
       <input
           v-model="player.name"
           type="text"

@@ -71,6 +71,7 @@ function addTeam(game) {
   const team = new Team('Team ' + (game.teams.length + 1));
 
   team.addPlayer(new Player('Speler 1'));
+  team.addPlayer(new Player('Speler 2'));
 
   game.addTeam(team);
 }

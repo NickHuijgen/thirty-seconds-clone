@@ -22,21 +22,25 @@
       >
     </div>
 
-    <p>
-      Spelers
-    </p>
-    <button
-        type="button"
-        class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-        @click="addPlayer(team)"
-    >
-      Voeg speler toe
-    </button>
+    <div class="pt-8">
+      <div class="grid grid-cols-2">
+        <p>
+          Spelers
+        </p>
 
-    <div class="shadow-2xl p-4">
+        <button
+            type="button"
+            class="font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+            @click="addPlayer(team)"
+        >
+          Voeg speler toe
+        </button>
+      </div>
+
       <div
           v-for="(player, index) in team.players"
           :key="index"
+          class="shadow-xl p-4 mb-1"
       >
         <PlayerSetup
             :player="player"
@@ -69,7 +73,7 @@ const props = defineProps({
 });
 
 function addPlayer(team) {
-  team.addPlayer(new Player('Player ' + (team.players.length + 1)));
+  team.addPlayer(new Player('Speler ' + (team.players.length + 1)));
 }
 
 function removeTeam() {
