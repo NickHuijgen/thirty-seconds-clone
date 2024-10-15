@@ -9,6 +9,7 @@
           :game="game"
       />
       <Playing
+          v-if="game.is_in_progress"
         :game="game"
       />
     </div>

@@ -56,7 +56,7 @@
       <button
           type="button"
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-          @click="startGame(game)"
+          @click="finishSetup(game)"
       >
         Start game
       </button>
@@ -90,8 +90,8 @@ function removeTeam(game: Game, team: Team) {
   game.removeTeam(team);
 }
 
-function startGame(game: Game) {
-  game.start();
+function finishSetup(game: Game) {
+  game.setUp();
 }
 </script>
 

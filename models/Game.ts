@@ -31,7 +31,7 @@ export default class Game {
         this.teams = this.teams.filter(t => t !== team);
     }
 
-    public start() {
+    public setUp() {
         this.generateTeamIndexes();
 
         this.available_people = people.data;
@@ -40,9 +40,11 @@ export default class Game {
         this.available_media = media.data;
         this.available_brands = brands.data;
 
-        this.setActiveWords();
-
         this.is_in_progress = true;
+    }
+
+    public start() {
+        this.goNextTurn();
     }
 
     public generateTeamIndexes() {
