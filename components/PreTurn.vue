@@ -13,7 +13,7 @@
     <button
         type="button"
         class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-        @click="game.startTurnTimer()"
+        @click="game.startTurn()"
     >
       Start beurt
     </button>
@@ -21,10 +21,6 @@
 </template>
 
 <script setup lang="ts">
-import Team from "~/models/Team";
-import PlayerSetup from "~/components/PlayerSetup.vue";
-import Player from "~/models/Player";
-import RemoveButton from "~/components/RemoveButton.vue";
 import Game from "~/models/Game";
 
 const props = defineProps({

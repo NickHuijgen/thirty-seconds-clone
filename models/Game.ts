@@ -49,6 +49,11 @@ export default class Game {
         this.goNextTurn();
     }
 
+    public startTurn() {
+        this.setActiveWords();
+        this.startTurnTimer();
+    }
+
     public startTurnTimer() {
         this.turn_timer = 30;
         const interval = setInterval(() => {
@@ -78,8 +83,6 @@ export default class Game {
         this.active_team_index = (this.active_team_index + 1) % this.teams.length;
 
         this.teams[this.active_team_index].goNextTurn();
-
-        this.setActiveWords();
     }
 
     public activeTeam() {
