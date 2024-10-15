@@ -78,7 +78,7 @@ export default class Game {
     }
 
     public startTurnTimer() {
-        this.turn_timer = 1;
+        this.turn_timer = 30;
         const interval = setInterval(() => {
             this.turn_timer -= 1;
 
