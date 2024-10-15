@@ -14,7 +14,7 @@ import Game from "~/models/game.ts";
 import Team from "~/models/team.ts";
 import SetupForm from "~/components/GameSetup.vue";
 
-const game: Game = ref(new Game(20))
+const game: Game = ref(new Game(50))
 
 game.value.addTeam(new Team('Team 1'))
 
