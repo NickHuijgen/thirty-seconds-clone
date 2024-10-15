@@ -8,4 +8,7 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
+  app: {
+    baseURL: 'https://nickhuijgen.github.io/thirty-seconds-clone/',
+  }
 })
