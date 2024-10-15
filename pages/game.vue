@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center">
-    <div class="my-auto bg-white p-16 rounded-md shadow-2xl">
+    <div class="my-auto bg-white p-4 rounded-md shadow-2xl">
       <SetupForm
           v-if="!game.is_in_progress"
           :game="game"
