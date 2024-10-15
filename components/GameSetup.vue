@@ -6,7 +6,7 @@
       </p>
 
       <p class="text-gray-600 mb-4">
-        Maximaal 4 teams. Maximaal 4 spelers per team.
+        Wie en welk team begint wordt willekeurig bepaald
       </p>
 
       <div>
@@ -14,7 +14,7 @@
             for="max_score"
             class="block mb-2 text-sm text-gray-600"
         >
-          Tot de hoeveel punten spelen we? (maximaal)
+          Tot de hoeveel punten spelen we?
         </label>
         <select
             v-model="game.max_score"
