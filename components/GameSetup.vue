@@ -55,7 +55,7 @@
       </div>
     </div>
 
-    <div class="pt-6 flex justify-center">
+    <div class="pt-6 flex justify-center pb-16">
       <button
           type="button"
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
