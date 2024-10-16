@@ -10,22 +10,19 @@
       </p>
 
       <div class="flex justify-center items-center p-4">
-        <button
-            type="button"
+        <NuxtLink
+            to="/game"
             class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-            @click="startGame()"
         >
           Begin spel
-        </button>
+        </NuxtLink>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-function startGame() {
-  window.location.href = '/game';
-}
+
 </script>
 
 <style scoped>
