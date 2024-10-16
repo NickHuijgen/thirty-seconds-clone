@@ -79,13 +79,11 @@ export default class Game {
     }
 
     public startTurnTimer() {
-        this.turn_timer = 30;
+        this.turn_timer = 5;
         const interval = setInterval(() => {
             this.turn_timer -= 1;
 
-            if (this.turn_timer <= 0) {
-                clearInterval(interval);
-
+            if (this.turn_timer === 1) {
                 let play: () => void;
 
                 play = () => {
@@ -94,6 +92,10 @@ export default class Game {
                 };
 
                 play();
+            }
+
+            if (this.turn_timer <= 0) {
+                clearInterval(interval);
 
                 this.is_applying_score = true;
             }
