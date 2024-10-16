@@ -1,7 +1,7 @@
 <template>
   <div
       v-if="canRemove"
-      class="absolute right-1 top-2"
+      class="absolute right-2 top-2"
   >
     <span
         class="material-icons text-lg text-red-500 hover:text-red-600 cursor-pointer"
