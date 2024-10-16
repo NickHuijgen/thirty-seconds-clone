@@ -41,4 +41,12 @@ export default class Team {
     public activePlayer() {
         return this.players[this.active_player_index];
     }
+
+    public inactivePlayers() {
+        return this.players.filter(p => p !== this.activePlayer());
+    }
+
+    public nextUpPlayer() {
+        return this.players[(this.active_player_index + 1) % this.players.length];
+    }
 }

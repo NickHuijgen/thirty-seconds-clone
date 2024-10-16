@@ -157,4 +157,10 @@ export default class Game {
         this.available_media = this.available_media.filter(p => !this.used_words.includes(p));
         this.available_brands = this.available_brands.filter(p => !this.used_words.includes(p));
     }
+
+    public nextUpTeam() {
+        const next_team_index = (this.active_team_index + 1) % this.teams.length;
+
+        return this.teams[next_team_index];
+    }
 }
