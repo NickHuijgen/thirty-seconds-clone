@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 function startGame() {
-  window.location.href = '/game';
+  window.location.href = 'thirty-seconds-clone/game';
 }
 </script>
 
