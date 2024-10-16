@@ -1,11 +1,10 @@
 <template>
-  <div class="absolute right-1 top-0.5">
+  <div
+      v-if="canRemove"
+      class="absolute right-1 top-2"
+  >
     <span
-        class="material-icons text-sm"
-        :class="{
-          'cursor-not-allowed text-gray-500': !canRemove,
-          'text-red-500 hover:text-red-600 cursor-pointer': canRemove,
-        }"
+        class="material-icons text-lg text-red-500 hover:text-red-600 cursor-pointer"
         title="Verwijder team"
         @click="handleClick()"
     >

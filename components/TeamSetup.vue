@@ -6,12 +6,6 @@
     />
 
     <div>
-      <label
-          for="team_name"
-          class="block mb-1"
-      >
-        Team naam
-      </label>
       <input
           v-model="team.name"
           type="text"
