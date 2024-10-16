@@ -163,4 +163,18 @@ export default class Game {
 
         return this.teams[next_team_index];
     }
+
+    public teamCount() {
+        return this.teams.length;
+    }
+
+    public playerCount() {
+        let count = 0;
+
+        this.teams.forEach(team => {
+            count += team.playerCount();
+        });
+
+        return count;
+    }
 }

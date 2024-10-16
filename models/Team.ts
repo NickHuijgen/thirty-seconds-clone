@@ -49,4 +49,8 @@ export default class Team {
     public nextUpPlayer() {
         return this.players[(this.active_player_index + 1) % this.players.length];
     }
+
+    public playerCount() {
+        return this.players.length;
+    }
 }

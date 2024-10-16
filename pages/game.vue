@@ -40,8 +40,8 @@ game.value.addTeam(team1);
 
 const team2 = new Team('Team 2');
 
-team2.addPlayer(new Player('Speler 1'));
-team2.addPlayer(new Player('Speler 2'));
+team2.addPlayer(new Player('Speler 3'));
+team2.addPlayer(new Player('Speler 4'));
 
 game.value.addTeam(team2);
 

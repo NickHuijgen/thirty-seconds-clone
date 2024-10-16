@@ -48,6 +48,7 @@
       >
         <TeamSetup
             :team="team"
+            :game="game"
             @remove-team="removeTeam(game, team)"
             :can-remove="game.teams.length > 2"
         />
@@ -80,10 +81,12 @@ defineProps({
 });
 
 function addTeam(game: Game) {
-  const team = new Team('Team ' + (game.teams.length + 1));
+  const team = new Team('Team ' + (game.teamCount() + 1));
 
-  team.addPlayer(new Player('Speler 1'));
-  team.addPlayer(new Player('Speler 2'));
+  const currentPlayerCount = game.playerCount();
+
+  team.addPlayer(new Player('Speler ' + (currentPlayerCount + 1)));
+  team.addPlayer(new Player('Speler ' + (currentPlayerCount + 2)));
 
   game.addTeam(team);
 }

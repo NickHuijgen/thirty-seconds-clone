@@ -57,6 +57,7 @@ import Team from "~/models/Team";
 import PlayerSetup from "~/components/PlayerSetup.vue";
 import Player from "~/models/Player";
 import RemoveButton from "~/components/RemoveButton.vue";
+import Game from "~/models/Game";
 
 const emit = defineEmits(['remove-team']);
 
@@ -70,10 +71,15 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
+
+  game: {
+    type: Game,
+    required: true,
+  },
 });
 
 function addPlayer(team: Team) {
-  team.addPlayer(new Player('Speler ' + (team.players.length + 1)));
+  team.addPlayer(new Player('Speler ' + (props.game?.playerCount() + 1)));
 }
 
 function removeTeam() {
