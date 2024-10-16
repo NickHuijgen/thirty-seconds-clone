@@ -20,6 +20,23 @@
   </div>
 
   <Leaderboard :game="game" />
+
+  <div class="py-4 text-sm text-gray-500">
+    <p>
+      Deze spelers mogen raden:
+    </p>
+
+    <p
+        v-for="(player, index) in game.activeTeam().inactivePlayers()"
+        :key="index"
+    >
+      {{ player.name }}
+    </p>
+  </div>
+
+  <p class="text-sm text-gray-500">
+    Volgende beurt is {{ game.nextUpTeam().nextUpPlayer().name }} van {{ game.nextUpTeam().name }} aan de beurt
+  </p>
 </template>
 
 <script setup lang="ts">
