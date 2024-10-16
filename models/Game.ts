@@ -4,6 +4,7 @@ import places from '../public/places.json';
 import wildcards from '../public/wildcards.json';
 import media from '../public/media.json';
 import brands from '../public/brands.json';
+import vineBoom from "public/sounds/vine-boom.mp3";
 
 export default class Game {
     max_score: number;
@@ -84,6 +85,15 @@ export default class Game {
 
             if (this.turn_timer <= 0) {
                 clearInterval(interval);
+
+                let play: () => void;
+
+                play = () => {
+                    const audio = new Audio(vineBoom);
+                    audio.play();
+                };
+
+                play();
 
                 this.is_applying_score = true;
             }
