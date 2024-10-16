@@ -75,10 +75,7 @@ export default class Game {
 
     public startTurn() {
         this.setActiveWords();
-        this.startTurnTimer();
-    }
 
-    public startTurnTimer() {
         this.turn_timer = 30;
         const interval = setInterval(() => {
             this.turn_timer -= 1;
@@ -88,8 +85,14 @@ export default class Game {
 
                 play = () => {
                     const audio = new Audio(vineBoom);
-                    audio.play();
-                };
+                    const promise = audio.play();
+
+                    if (promise !== undefined) {
+                        promise.catch(error => {
+                            console.log(error)
+                        });
+                    }
+                }
 
                 play();
             }
