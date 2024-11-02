@@ -32,11 +32,6 @@ export default class Game {
     }
 
     public restart() {
-        this.available_people = null;
-        this.available_places = null;
-        this.available_wildcards = null;
-        this.available_media = null;
-        this.available_brands = null;
         this.winning_team = null;
         this.is_finished = false;
         this.is_in_progress = false;
