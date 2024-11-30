@@ -134,7 +134,7 @@ export default class Game {
     }
 
     public activeTeam() {
-        return this.teams[this.active_team_index];
+        return this.teams.filter(t => t.index === this.active_team_index)[0];
     }
 
     public setActiveWords() {
