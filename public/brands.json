@@ -196,7 +196,6 @@
     "TCL",
     "Dyson",
     "LEGO",
-    "Mattel",
     "Hasbro",
     "Playmobil",
     "Fisher-Price",
@@ -206,7 +205,6 @@
     "Funko POP!",
     "Disney Pixar",
     "Warner Bros",
-    "MGM",
     "Lionsgate",
     "Netflix",
     "Amazon Studios",
@@ -225,6 +223,7 @@
     "Time",
     "The Wall Street Journal",
     "Vogue",
-    "National Geographic"
+    "National Geographic",
+    "Casio"
   ]
 }
