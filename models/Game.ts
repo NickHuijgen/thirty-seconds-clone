@@ -24,6 +24,7 @@ export default class Game {
 
     is_applying_score: boolean = false;
     is_finished: boolean = false;
+    is_restarted: boolean = false;
 
     winning_team: Team | null = null;
 
@@ -36,6 +37,7 @@ export default class Game {
         this.is_finished = false;
         this.is_in_progress = false;
         this.is_applying_score = false;
+        this.is_restarted = true;
         this.active_words = [];
 
         this.teams.forEach(team => {
@@ -53,7 +55,9 @@ export default class Game {
     }
 
     public setUp() {
-        Game.clearCookies();
+        if (!this.is_restarted) {
+            Game.clearCookies();
+        }
         this.generateTeamIndexes();
 
         this.available_people = people.data;
@@ -62,6 +66,7 @@ export default class Game {
         this.available_media = media.data;
         this.available_brands = brands.data;
 
+        this.is_restarted = false;
         this.is_in_progress = true;
     }
 
@@ -254,6 +259,6 @@ export default class Game {
     }
 
     public canLoadFromCookies() {
-        return this.getCookie('game_data') !== null;
+        return this.getCookie('game_data') !== null && !this.is_restarted;
     }
 }

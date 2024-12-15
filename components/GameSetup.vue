@@ -70,7 +70,7 @@
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
           @click="finishSetup(game)"
       >
-        Begin Spel
+        Begin nieuw spel
       </button>
     </div>
   </div>
