@@ -1,5 +1,14 @@
 <template>
   <div class="grid gris-cols-1 sm:grid-cols-2 sm:space-x-4">
+    <button
+        v-if="game.canLoadFromCookies()"
+        type="button"
+        class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+        @click="emit('start-from-cookies')"
+    >
+      Ga verder met het spel
+    </button>
+
     <div class="py-4">
       <p class="text-lg text-gray-600 mb-2">
         Game setup
@@ -79,6 +88,8 @@ defineProps({
     required: true,
   },
 });
+
+const emit = defineEmits(['start-from-cookies']);
 
 function addTeam(game: Game) {
   const team = new Team('Team ' + (game.teamCount() + 1));

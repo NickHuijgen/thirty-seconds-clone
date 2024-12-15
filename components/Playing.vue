@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import Game from "~/models/Game";
 
-const props = defineProps({
+defineProps({
   game: {
     type: Game,
     required: true,

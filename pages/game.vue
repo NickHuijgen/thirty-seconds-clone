@@ -7,6 +7,7 @@
       <SetupForm
         v-if="!game.is_in_progress && !game.is_finished"
         :game="game"
+        @start-from-cookies="startFromCookies()"
       />
       <Playing
         v-if="game.is_in_progress && !game.is_finished"
@@ -22,14 +23,14 @@
 </template>
 
 <script setup lang="ts">
-import Game from "~/models/Game.ts";
-import Team from "~/models/Team.ts";
+import Game from "~/models/Game";
+import Team from "~/models/Team";
 import SetupForm from "~/components/GameSetup.vue";
 import Player from "~/models/Player";
 import Playing from "~/components/Playing.vue";
 import PostGame from "~/components/PostGame.vue";
 
-const game: Game = ref(new Game(50))
+const game: Game = ref(new Game(50));
 
 const team1 = new Team('Team 1');
 
@@ -49,8 +50,7 @@ function restartGame(game: Game) {
   game.restart();
 }
 
+function startFromCookies() {
+  game.value.loadFromCookies();
+}
 </script>
-
-<style scoped>
-
-</style>
