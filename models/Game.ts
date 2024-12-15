@@ -128,9 +128,9 @@ export default class Game {
     }
 
     public goNextTurn() {
-        this.active_team_index = (this.active_team_index + 1) % this.teams.length;
-
         this.teams[this.active_team_index].goNextTurn();
+
+        this.active_team_index = (this.active_team_index + 1) % this.teams.length;
     }
 
     public activeTeam() {
