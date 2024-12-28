@@ -35,7 +35,7 @@
   </div>
 
   <p class="text-sm text-gray-500">
-    Volgende beurt is {{ game.nextUpTeam().nextUpPlayer().name }} van {{ game.nextUpTeam().name }} aan de beurt
+    Volgende beurt is {{ game.nextUpTeam().activePlayer().name }} van {{ game.nextUpTeam().name }} aan de beurt
   </p>
 </template>
 

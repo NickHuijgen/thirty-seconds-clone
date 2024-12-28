@@ -173,7 +173,7 @@ export default class Game {
     public nextUpTeam() {
         const next_team_index = (this.active_team_index + 1) % this.teams.length;
 
-        return this.teams[next_team_index];
+        return this.teams.filter(t => t.index === next_team_index)[0];
     }
 
     public teamCount() {
