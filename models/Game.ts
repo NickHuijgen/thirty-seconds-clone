@@ -77,23 +77,20 @@ export default class Game {
     public startTurn() {
         this.setActiveWords();
 
-        let playSound = () => {
-            const audio = new Audio(vineBoom);
-            const promise = audio.play();
-
-            if (promise !== undefined) {
-                promise.catch(error => {
-                    console.log(error)
-                });
-            }
-        }
+        const audio = new Audio(vineBoom);
+        audio.load();
 
         this.turn_timer = 30;
         const interval = setInterval(() => {
             this.turn_timer -= 1;
 
             if (this.turn_timer === 1) {
-                playSound();
+                const promise = audio.play();
+                if (promise !== undefined) {
+                    promise.catch(error => {
+                        console.log('Audio play failed:', error);
+                    });
+                }
             }
 
             if (this.turn_timer <= 0) {
