@@ -77,8 +77,7 @@ export default class Game {
     public startTurn() {
         this.setActiveWords();
 
-        let play = () => {
-            console.log('play sound');
+        let playSound = () => {
             const audio = new Audio(vineBoom);
             const promise = audio.play();
 
@@ -94,7 +93,7 @@ export default class Game {
             this.turn_timer -= 1;
 
             if (this.turn_timer === 1) {
-                play();
+                playSound();
             }
 
             if (this.turn_timer <= 0) {
