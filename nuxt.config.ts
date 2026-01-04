@@ -8,6 +8,7 @@ export default defineNuxtConfig({
       autoprefixer: {},
     },
   },
+  ssr: false,
   app: {
     head: {
       title: '30 Seconds',
