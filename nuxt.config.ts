@@ -9,6 +9,12 @@ export default defineNuxtConfig({
     },
   },
   app: {
+    head: {
+      title: '30 Seconds',
+    },
     baseURL: '/thirty-seconds-clone/',
+    meta: [
+      { name: 'author', content: 'Nick Huijgen' },
+    ],
   }
 })
