@@ -1,5 +1,5 @@
 <template>
-  <div class="grid gris-cols-1 sm:grid-cols-2 sm:space-x-4">
+  <div class="grid gris-cols-1">
     <button
         v-if="game.canLoadFromCookies()"
         type="button"
@@ -64,7 +64,7 @@
       </div>
     </div>
 
-    <div class="pt-6 flex justify-center pb-16 sm:col-start-2">
+    <div class="pt-6 flex justify-center pb-16">
       <button
           type="button"
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
