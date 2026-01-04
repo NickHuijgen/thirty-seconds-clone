@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     head: {
       title: '30 Seconds',
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/svg+xml', href: 'favicon.svg' },
       ],
       meta: [
         { name: 'author', content: 'Nick Huijgen' },
