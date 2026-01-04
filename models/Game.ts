@@ -4,7 +4,7 @@ import places from '../public/places.json';
 import wildcards from '../public/wildcards.json';
 import media from '../public/media.json';
 import brands from '../public/brands.json';
-import vineBoom from "public/sounds/vine-boom.mp3";
+import vineBoom from "../public/sounds/vine-boom.mp3";
 import Player from "~/models/Player";
 
 export default class Game {
