@@ -11,10 +11,13 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: '30 Seconds',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+      ],
+      meta: [
+        { name: 'author', content: 'Nick Huijgen' },
+      ],
     },
     baseURL: '/thirty-seconds-clone/',
-    meta: [
-      { name: 'author', content: 'Nick Huijgen' },
-    ],
   }
 })
