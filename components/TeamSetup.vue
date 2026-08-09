@@ -16,20 +16,10 @@
       >
     </div>
 
-    <div class="pt-8">
-      <div class="grid grid-cols-2">
-        <p>
-          Spelers
-        </p>
-
-        <button
-            type="button"
-            class="font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-            @click="addPlayer(team)"
-        >
-          Voeg speler toe
-        </button>
-      </div>
+    <div class="pt-4">
+      <p class="font-medium">
+        Spelers
+      </p>
 
       <div
           v-for="(player, index) in team.players"
@@ -41,6 +31,16 @@
             @remove-player="removePlayer(team, player)"
             :can-remove="team.players.length > 2"
         />
+      </div>
+
+      <div class="pt-2">
+        <button
+            type="button"
+            class="px-2 py-0.5 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+            @click="addPlayer(team)"
+        >
+          Voeg speler toe
+        </button>
       </div>
     </div>
   </div>

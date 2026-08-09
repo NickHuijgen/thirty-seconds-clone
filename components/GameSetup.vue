@@ -9,7 +9,7 @@
       Ga verder met bestaand spel
     </button>
 
-    <div class="py-4">
+    <div class="pt-4">
       <p class="text-2xl font-bold text-gray-600 mb-2">
         30 seconds
       </p>
@@ -17,43 +17,17 @@
       <p class="text-gray-600 mb-4">
         Wie en welk team begint wordt willekeurig bepaald
       </p>
-
-      <div>
-        <label
-            for="max_score"
-            class="block mb-2 text-sm text-gray-600"
-        >
-          Tot de hoeveel punten spelen we?
-        </label>
-        <select
-            v-model="game.max_score"
-            name="max_score"
-            id="max_score"
-            class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
-        >
-          <option :value="10">10</option>
-          <option :value="25">25</option>
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-        </select>
-      </div>
     </div>
 
-    <div>
-      <div class="flex justify-center py-4">
-        <button
-            type="button"
-            class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
-            @click="addTeam(game)"
-        >
-          Voeg team toe
-        </button>
-      </div>
+    <div class="pt-2">
+      <p class="font-semibold text-lg mb-1">
+        Teams
+      </p>
 
       <div
           v-for="(team, index) in game.teams"
           :key="index"
-          class="border-2 border-gray-100 rounded-md p-4 my-2"
+          class="border-2 border-gray-200 shadow-sm rounded-md p-4 mb-4"
       >
         <TeamSetup
             :team="team"
@@ -62,6 +36,40 @@
             :can-remove="game.teams.length > 2"
         />
       </div>
+    </div>
+
+    <div class="flex pb-4">
+      <button
+          type="button"
+          class="px-8 py-1 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+          @click="addTeam(game)"
+      >
+        Voeg team toe
+      </button>
+    </div>
+
+    <div class="py-4">
+      <p class="font-semibold">
+        Regels
+      </p>
+
+      <label
+          for="max_score"
+          class="block mb-2 text-sm"
+      >
+        Tot de hoeveel punten spelen we?
+      </label>
+      <select
+          v-model="game.max_score"
+          name="max_score"
+          id="max_score"
+          class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
+      >
+        <option :value="10">10</option>
+        <option :value="25">25</option>
+        <option :value="50">50</option>
+        <option :value="100">100</option>
+      </select>
     </div>
 
     <div class="pt-3 flex justify-center pb-8">
