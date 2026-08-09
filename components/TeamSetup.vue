@@ -1,4 +1,8 @@
 <template>
+  <div class="mb-1 font-medium">
+    Team {{ index + 1 }}
+  </div>
+
   <div class="relative">
     <RemoveButton
         :can-remove="canRemove"
@@ -36,10 +40,10 @@
       <div class="pt-2">
         <button
             type="button"
-            class="px-2 py-0.5 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+            class="px-2 py-0.5 border-2 border-gray-200 shadow-sm rounded-md text-gray-700"
             @click="addPlayer(team)"
         >
-          Voeg speler toe
+          + Voeg speler toe
         </button>
       </div>
     </div>
@@ -56,6 +60,11 @@ import Game from "~/models/Game";
 const emit = defineEmits(['remove-team']);
 
 const props = defineProps({
+  index: {
+    type: Number,
+    required: true,
+  },
+
   team: {
     type: Team,
     required: true,

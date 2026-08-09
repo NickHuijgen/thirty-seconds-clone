@@ -3,13 +3,13 @@
     <button
         v-if="game.canLoadFromCookies()"
         type="button"
-        class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+        class="px-8 py-3 mb-2 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
         @click="emit('start-from-cookies')"
     >
       Ga verder met bestaand spel
     </button>
 
-    <div class="pt-4">
+    <div class="pt-2">
       <p class="text-2xl font-bold text-gray-600 mb-2">
         30 seconds
       </p>
@@ -32,8 +32,9 @@
         <TeamSetup
             :team="team"
             :game="game"
-            @remove-team="removeTeam(game, team)"
             :can-remove="game.teams.length > 2"
+            :index="index"
+            @remove-team="removeTeam(game, team)"
         />
       </div>
     </div>
@@ -41,10 +42,10 @@
     <div class="flex pb-4">
       <button
           type="button"
-          class="px-8 py-1 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+          class="px-2 py-0.5 border-2 border-gray-200 shadow-sm rounded-md text-gray-700"
           @click="addTeam(game)"
       >
-        Voeg team toe
+        + Voeg team toe
       </button>
     </div>
 
