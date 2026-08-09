@@ -12,7 +12,8 @@ export default class Game {
     teams: Team[] = [];
     is_in_progress: boolean = false;
     active_team_index: number = 0;
-    active_words: string[] = []
+    active_words: string[] = [];
+    interval: number = 0;
 
     available_people: string[] = [];
     available_places: string[] = [];
@@ -81,7 +82,7 @@ export default class Game {
         audio.load();
 
         this.turn_timer = 30;
-        const interval = setInterval(() => {
+        this.interval = setInterval(() => {
             this.turn_timer -= 1;
 
             if (this.turn_timer === 1) {
@@ -94,11 +95,23 @@ export default class Game {
             }
 
             if (this.turn_timer <= 0) {
-                clearInterval(interval);
+                clearInterval(this.interval);
 
                 this.is_applying_score = true;
             }
         }, 1000);
+    }
+
+    public forceEndTurn() {
+        this.turn_timer = 0;
+
+        const audio = new Audio(vineBoom);
+        audio.load();
+        audio.play();
+
+        this.is_applying_score = true;
+
+        clearInterval(this.interval);
     }
 
     public finishTurn(score: number) {

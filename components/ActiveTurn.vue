@@ -2,7 +2,10 @@
   <div class="justify-center">
     <div class="flex justify-center items-center">
       <div class="relative">
-        <svg class="timer-circle" viewBox="0 0 36 36">
+        <svg
+            @click="game.forceEndTurn()"
+            class="timer-circle" viewBox="0 0 36 36"
+        >
           <path
               class="circle-bg"
               d="M18 2.0845
