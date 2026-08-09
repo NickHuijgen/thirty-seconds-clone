@@ -5,6 +5,7 @@ import wildcards from '../public/wildcards.json';
 import media from '../public/media.json';
 import brands from '../public/brands.json';
 import vineBoom from "../public/sounds/vine-boom.mp3";
+import turnStart from "../public/sounds/turn-start.mp3";
 import Player from "~/models/Player";
 
 export default class Game {
@@ -77,6 +78,10 @@ export default class Game {
 
     public startTurn() {
         this.setActiveWords();
+
+        const turnStartAudio = new Audio(turnStart);
+        turnStartAudio.load();
+        turnStartAudio.play();
 
         const audio = new Audio(vineBoom);
         audio.load();
