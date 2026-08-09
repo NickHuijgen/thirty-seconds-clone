@@ -135,6 +135,7 @@ export default class Game {
     public generateTeamIndexes(): void {
         for (let i = this.teams.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
+            // @ts-ignore
             [this.teams[i], this.teams[j]] = [this.teams[j], this.teams[i]];
         }
 
@@ -153,6 +154,7 @@ export default class Game {
     }
 
     public activeTeam(): Team {
+        // @ts-ignore
         return this.teams.filter(t => t.index === this.active_team_index)[0];
     }
 
@@ -171,6 +173,7 @@ export default class Game {
     }
 
     public getRandom(array: string[]): string {
+        // @ts-ignore
         return array[Math.floor(Math.random() * array.length)];
     }
 
@@ -185,6 +188,7 @@ export default class Game {
     public nextUpTeam(): Team {
         const next_team_index = (this.active_team_index + 1) % this.teams.length;
 
+        // @ts-ignore
         return this.teams.filter(t => t.index === next_team_index)[0];
     }
 
