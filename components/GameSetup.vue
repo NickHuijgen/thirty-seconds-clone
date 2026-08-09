@@ -10,8 +10,8 @@
     </button>
 
     <div class="py-4">
-      <p class="text-lg text-gray-600 mb-2">
-        Game setup
+      <p class="text-2xl font-bold text-gray-600 mb-2">
+        30 seconds
       </p>
 
       <p class="text-gray-600 mb-4">
@@ -53,7 +53,7 @@
       <div
           v-for="(team, index) in game.teams"
           :key="index"
-          class="border-2 p-4 shadow-xl my-2"
+          class="border-2 border-gray-100 rounded-md p-4 my-2"
       >
         <TeamSetup
             :team="team"
@@ -64,7 +64,7 @@
       </div>
     </div>
 
-    <div class="pt-6 flex justify-center pb-16">
+    <div class="pt-3 flex justify-center pb-8">
       <button
           type="button"
           class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"

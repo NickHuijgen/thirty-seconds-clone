@@ -1,6 +1,6 @@
 <template>
   <div
-      class="h-screen overflow-y-auto w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center"
+      class="h-screen p-4 overflow-y-auto w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center"
       v-if="game"
   >
     <div class="my-auto bg-white p-4 rounded-md shadow-2xl">

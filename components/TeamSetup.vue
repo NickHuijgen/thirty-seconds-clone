@@ -34,7 +34,7 @@
       <div
           v-for="(player, index) in team.players"
           :key="index"
-          class="shadow-xl p-4 mb-1"
+          class="py-2 mb-1"
       >
         <PlayerSetup
             :player="player"
