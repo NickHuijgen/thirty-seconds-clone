@@ -34,7 +34,7 @@ export default class Game {
         this.max_score = max_score;
     }
 
-    public restart() {
+    public restart(): void {
         this.winning_team = null;
         this.is_finished = false;
         this.is_in_progress = false;
@@ -56,7 +56,7 @@ export default class Game {
         this.teams = this.teams.filter(t => t !== team);
     }
 
-    public setUp() {
+    public setUp(): void {
         if (!this.is_restarted) {
             Game.clearCookies();
         }
@@ -72,11 +72,11 @@ export default class Game {
         this.is_in_progress = true;
     }
 
-    public start() {
+    public start(): void {
         this.goNextTurn();
     }
 
-    public startTurn() {
+    public startTurn(): void {
         this.setActiveWords();
 
         const turnStartAudio = new Audio(turnStart);
@@ -107,7 +107,7 @@ export default class Game {
         }, 1000);
     }
 
-    public forceEndTurn() {
+    public forceEndTurn(): void {
         clearInterval(this.interval);
         this.turn_timer = 0;
 
@@ -118,7 +118,7 @@ export default class Game {
         this.is_applying_score = true;
     }
 
-    public finishTurn(score: number) {
+    public finishTurn(score: number): void {
         this.is_applying_score = false;
 
         this.activeTeam().score += score;
@@ -132,7 +132,7 @@ export default class Game {
         this.saveToCookies();
     }
 
-    public generateTeamIndexes() {
+    public generateTeamIndexes(): void {
         for (let i = this.teams.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [this.teams[i], this.teams[j]] = [this.teams[j], this.teams[i]];
@@ -146,17 +146,17 @@ export default class Game {
         });
     }
 
-    public goNextTurn() {
+    public goNextTurn(): void {
         this.activeTeam().goNextTurn();
 
         this.active_team_index = (this.active_team_index + 1) % this.teams.length;
     }
 
-    public activeTeam() {
+    public activeTeam(): Team {
         return this.teams.filter(t => t.index === this.active_team_index)[0];
     }
 
-    public setActiveWords() {
+    public setActiveWords(): void {
         this.setUsed();
 
         this.active_words = [];
@@ -170,11 +170,11 @@ export default class Game {
         ];
     }
 
-    public getRandom(array: string[]) {
+    public getRandom(array: string[]): string {
         return array[Math.floor(Math.random() * array.length)];
     }
 
-    public setUsed() {
+    public setUsed(): void {
         this.available_people = this.available_people.filter(p => !this.active_words.includes(p));
         this.available_places = this.available_places.filter(p => !this.active_words.includes(p));
         this.available_wildcards = this.available_wildcards.filter(p => !this.active_words.includes(p));
@@ -182,17 +182,17 @@ export default class Game {
         this.available_brands = this.available_brands.filter(p => !this.active_words.includes(p));
     }
 
-    public nextUpTeam() {
+    public nextUpTeam(): Team {
         const next_team_index = (this.active_team_index + 1) % this.teams.length;
 
         return this.teams.filter(t => t.index === next_team_index)[0];
     }
 
-    public teamCount() {
+    public teamCount(): number {
         return this.teams.length;
     }
 
-    public playerCount() {
+    public playerCount(): number {
         let count = 0;
 
         this.teams.forEach(team => {
@@ -202,7 +202,7 @@ export default class Game {
         return count;
     }
 
-    public saveToCookies() {
+    public saveToCookies(): void {
         const now = new Date();
         const time = now.getTime();
         const expireTime = time + 4 * 60 * 60 * 1000; // 4 hours in milliseconds
@@ -218,7 +218,7 @@ export default class Game {
         document.cookie = `available_brands=${JSON.stringify(available_brands)};expires=${now.toUTCString()};path=/`;
     }
 
-    public getCookie = (name: string) => {
+    public getCookie = (name: string): string|null|undefined => {
         if (typeof document === 'undefined') {
             return null;
         }
@@ -229,9 +229,9 @@ export default class Game {
         return null;
     };
 
-    public loadFromCookies() {
+    public loadFromCookies(): void {
         if (!this.canLoadFromCookies()) {
-            return null;
+            return;
         }
 
         const gameData = JSON.parse(this.getCookie('game_data') || '{}');
