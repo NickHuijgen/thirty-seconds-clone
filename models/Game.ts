@@ -108,6 +108,7 @@ export default class Game {
     }
 
     public forceEndTurn() {
+        clearInterval(this.interval);
         this.turn_timer = 0;
 
         const audio = new Audio(vineBoom);
@@ -115,8 +116,6 @@ export default class Game {
         audio.play();
 
         this.is_applying_score = true;
-
-        clearInterval(this.interval);
     }
 
     public finishTurn(score: number) {
