@@ -44,7 +44,7 @@
       <div class="pt-2">
         <button
             type="button"
-            class="px-2 py-0.5 border-2 border-gray-200 shadow-sm rounded-md text-gray-700"
+            class="px-2 py-0.5 border-2 border-gray-200 shadow-xs rounded-md text-gray-700"
             @click="addPlayer(team)"
         >
           + Voeg speler toe

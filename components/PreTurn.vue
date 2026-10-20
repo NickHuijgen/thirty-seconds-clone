@@ -12,7 +12,7 @@
   <div class="pt-6 flex justify-center">
     <button
         type="button"
-        class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+        class="px-8 py-3 font-semibold rounded-sm bg-linear-to-br text-white shadow-2xl hover:bg-linear-to-tr from-emerald-600 to-emerald-800"
         @click="game.startTurn()"
     >
       Start beurt

@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-full bg-gradient-to-tr from-green-100 to-blue-200 flex justify-center py-4">
+  <div class="h-screen w-full bg-linear-to-tr from-green-100 to-blue-200 flex justify-center py-4">
     <div class="my-auto">
       <p class="font-bold text-center text-xl p-4">
         Welkom bij 30 seconden!
@@ -12,7 +12,7 @@
       <div class="flex justify-center items-center p-4">
         <NuxtLink
             to="/game"
-            class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+            class="px-8 py-3 font-semibold rounded-sm bg-linear-to-br text-white shadow-2xl hover:bg-linear-to-tr from-emerald-600 to-emerald-800"
         >
           Begin spel
         </NuxtLink>

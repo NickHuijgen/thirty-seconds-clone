@@ -13,7 +13,7 @@
     >
       <button
           type="button"
-          class="py-2 w-64 border cursor-pointer"
+          class="relative py-2 w-64 border cursor-pointer"
           :class="{
             'bg-green-100 border-green-500': selectedWords.includes(word),
             'bg-white': !selectedWords.includes(word),
@@ -21,6 +21,13 @@
           :aria-pressed="selectedWords.includes(word)"
           @click="toggleWordSelect(word)"
       >
+        <span
+            v-if="selectedWords.includes(word)"
+            class="material-icons absolute left-2 top-1/2 -translate-y-1/2 text-lg text-green-700"
+            aria-hidden="true"
+        >
+          check
+        </span>
         <span class="block w-full text-center">
           {{ word }}
         </span>
@@ -30,7 +37,7 @@
     <div class="pt-6 flex justify-center">
       <button
           type="button"
-          class="px-8 py-3 font-semibold rounded bg-gradient-to-br text-white shadow-2xl hover:bg-gradient-to-tr from-emerald-600 to-emerald-800"
+          class="px-8 py-3 font-semibold rounded-sm bg-linear-to-br text-white shadow-2xl hover:bg-linear-to-tr from-emerald-600 to-emerald-800"
           @click="game.finishTurn(selectedWords.length)"
       >
         Klaar

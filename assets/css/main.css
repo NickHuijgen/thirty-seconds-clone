@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@layer base {
+    /* Tailwind v4 made the default border colour currentColor; keep the v3 grey */
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+
+    /* Tailwind v4 dropped cursor: pointer on buttons */
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+
+    /* One visible focus style for every control */
+    :focus-visible {
+        outline: 2px solid var(--color-emerald-700);
+        outline-offset: 2px;
+    }
+}

@@ -19,7 +19,7 @@
           />
           <path
               class="circle"
-              :stroke-dasharray="`${(game.turn_timer / 30) * 100}, 100`"
+              :stroke-dasharray="`${(game.turn_timer / TURN_SECONDS) * 100}, 100`"
               d="M18 2.0845
              a 15.9155 15.9155 0 0 1 0 31.831
              a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -28,6 +28,13 @@
         </svg>
       </button>
     </div>
+
+    <p
+        class="sr-only"
+        aria-live="polite"
+    >
+      {{ countdownAnnouncement }}
+    </p>
   </div>
 
   <div>
@@ -46,13 +53,26 @@
 </template>
 
 <script setup lang="ts">
-import Game from "~/models/Game";
+import Game, { TURN_SECONDS } from "~/models/Game";
 
 const props = defineProps({
   game: {
     type: Game,
     required: true,
   },
+});
+
+// Only a few moments are announced; reading out every second would drown out the players
+const countdownAnnouncement = computed(() => {
+  if (props.game.turn_timer <= 5) {
+    return 'Nog 5 seconden';
+  }
+
+  if (props.game.turn_timer <= 10) {
+    return 'Nog 10 seconden';
+  }
+
+  return '';
 });
 </script>
 

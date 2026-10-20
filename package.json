@@ -1,5 +1,5 @@
 {
-  "name": "nuxt-app",
+  "name": "thirty-seconds-clone",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,10 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "check": "vue-tsc --noEmit",
+    "test": "node --test \"test/*.test.ts\"",
+    "verify": "npm run check && npm test && npm run generate"
   },
   "dependencies": {
     "nuxt": "^4.6.2",
@@ -15,8 +18,10 @@
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.6.1",
-    "postcss": "^8.5.31",
-    "tailwindcss": "^3.4.14"
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.13"
   }
 }

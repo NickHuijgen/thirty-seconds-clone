@@ -1,12 +1,24 @@
-import Team from './Team';
-import people from '../public/people.json';
-import places from '../public/places.json';
-import wildcards from '../public/wildcards.json';
-import media from '../public/media.json';
-import brands from '../public/brands.json';
-import vineBoom from "../public/sounds/vine-boom.mp3";
-import turnStart from "../public/sounds/turn-start.mp3";
-import Player from "~/models/Player";
+import Team from './Team.ts';
+import Player from './Player.ts';
+
+export const CATEGORIES = ['people', 'places', 'wildcards', 'media', 'brands'] as const;
+
+export type Category = typeof CATEGORIES[number];
+
+export type WordLists = Record<Category, string[]>;
+
+export type Sound = 'turn-start' | 'vine-boom';
+
+// Returns a loaded sound that can be played later; injected so the game logic runs without a browser
+export type LoadSound = (sound: Sound) => { play(): void };
+
+export const TURN_SECONDS = 30;
+
+export const STORAGE_KEY = 'thirty-seconds-game';
+
+const SAVE_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+
+const silent: LoadSound = () => ({ play() {} });
 
 export default class Game {
     max_score: number;
@@ -14,13 +26,12 @@ export default class Game {
     is_in_progress: boolean = false;
     active_team_index: number = 0;
     active_words: string[] = [];
-    interval: number = 0;
+    interval: ReturnType<typeof setInterval> | undefined = undefined;
 
-    available_people: string[] = [];
-    available_places: string[] = [];
-    available_wildcards: string[] = [];
-    available_media: string[] = [];
-    available_brands: string[] = [];
+    words: WordLists;
+    available: WordLists = Game.emptyWordLists();
+
+    loadSound: LoadSound;
 
     turn_timer: number = 0;
 
@@ -30,8 +41,10 @@ export default class Game {
 
     winning_team: Team | null = null;
 
-    public constructor(max_score: number) {
+    public constructor(max_score: number, words: WordLists, loadSound: LoadSound = silent) {
         this.max_score = max_score;
+        this.words = words;
+        this.loadSound = loadSound;
     }
 
     public restart(): void {
@@ -58,15 +71,13 @@ export default class Game {
 
     public setUp(): void {
         if (!this.is_restarted) {
-            Game.clearCookies();
+            Game.clearSaved();
         }
         this.generateTeamIndexes();
 
-        this.available_people = people.data;
-        this.available_places = places.data;
-        this.available_wildcards = wildcards.data;
-        this.available_media = media.data;
-        this.available_brands = brands.data;
+        for (const category of CATEGORIES) {
+            this.available[category] = [...this.words[category]];
+        }
 
         this.is_restarted = false;
         this.is_in_progress = true;
@@ -75,24 +86,16 @@ export default class Game {
     public startTurn(): void {
         this.setActiveWords();
 
-        const turnStartAudio = new Audio(turnStart);
-        turnStartAudio.load();
-        turnStartAudio.play();
+        this.loadSound('turn-start').play();
 
-        const audio = new Audio(vineBoom);
-        audio.load();
+        const timeUp = this.loadSound('vine-boom');
 
-        this.turn_timer = 30;
+        this.turn_timer = TURN_SECONDS;
         this.interval = setInterval(() => {
             this.turn_timer -= 1;
 
             if (this.turn_timer === 1) {
-                const promise = audio.play();
-                if (promise !== undefined) {
-                    promise.catch(error => {
-                        console.log('Audio play failed:', error);
-                    });
-                }
+                timeUp.play();
             }
 
             if (this.turn_timer <= 0) {
@@ -107,9 +110,7 @@ export default class Game {
         clearInterval(this.interval);
         this.turn_timer = 0;
 
-        const audio = new Audio(vineBoom);
-        audio.load();
-        audio.play();
+        this.loadSound('vine-boom').play();
 
         this.is_applying_score = true;
     }
@@ -125,7 +126,7 @@ export default class Game {
         }
 
         this.goNextTurn();
-        this.saveToCookies();
+        this.save();
     }
 
     public generateTeamIndexes(): void {
@@ -155,13 +156,7 @@ export default class Game {
     }
 
     public setActiveWords(): void {
-        this.active_words = [
-            this.getRandom(this.available_people),
-            this.getRandom(this.available_places),
-            this.getRandom(this.available_wildcards),
-            this.getRandom(this.available_media),
-            this.getRandom(this.available_brands),
-        ];
+        this.active_words = CATEGORIES.map(category => this.getRandom(this.available[category]));
 
         // Remove the words right away, so a game saved after this turn doesn't offer them again
         this.setUsed();
@@ -173,11 +168,9 @@ export default class Game {
     }
 
     public setUsed(): void {
-        this.available_people = this.available_people.filter(p => !this.active_words.includes(p));
-        this.available_places = this.available_places.filter(p => !this.active_words.includes(p));
-        this.available_wildcards = this.available_wildcards.filter(p => !this.active_words.includes(p));
-        this.available_media = this.available_media.filter(p => !this.active_words.includes(p));
-        this.available_brands = this.available_brands.filter(p => !this.active_words.includes(p));
+        for (const category of CATEGORIES) {
+            this.available[category] = this.available[category].filter(w => !this.active_words.includes(w));
+        }
     }
 
     public nextUpTeam(): Team {
@@ -201,42 +194,41 @@ export default class Game {
         return count;
     }
 
-    public saveToCookies(): void {
-        const now = new Date();
-        const time = now.getTime();
-        const expireTime = time + 4 * 60 * 60 * 1000; // 4 hours in milliseconds
-        now.setTime(expireTime);
+    public save(): void {
+        const saved = {
+            expires_at: Date.now() + SAVE_DURATION,
+            max_score: this.max_score,
+            teams: this.teams.map(team => ({
+                name: team.name,
+                score: team.score,
+                index: team.index,
+                active_player_index: team.active_player_index,
+                players: team.players.map(player => ({ name: player.name, index: player.index })),
+            })),
+            is_in_progress: this.is_in_progress,
+            active_team_index: this.active_team_index,
+            is_finished: this.is_finished,
+            available: this.available,
+        };
 
-        const { available_people, available_places, available_wildcards, available_media, available_brands, ...gameData } = this;
-
-        document.cookie = `game_data=${JSON.stringify(gameData)};expires=${now.toUTCString()};path=/`;
-        document.cookie = `available_people=${JSON.stringify(available_people)};expires=${now.toUTCString()};path=/`;
-        document.cookie = `available_places=${JSON.stringify(available_places)};expires=${now.toUTCString()};path=/`;
-        document.cookie = `available_wildcards=${JSON.stringify(available_wildcards)};expires=${now.toUTCString()};path=/`;
-        document.cookie = `available_media=${JSON.stringify(available_media)};expires=${now.toUTCString()};path=/`;
-        document.cookie = `available_brands=${JSON.stringify(available_brands)};expires=${now.toUTCString()};path=/`;
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        } catch (error) {
+            // Private browsing or full storage: the game still works, it just can't be resumed
+            console.log('Saving the game failed:', error);
+        }
     }
 
-    public getCookie = (name: string): string|null|undefined => {
-        if (typeof document === 'undefined') {
-            return null;
-        }
+    public loadSaved(): void {
+        const saved = Game.readSaved();
 
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop()?.split(';').shift();
-        return null;
-    };
-
-    public loadFromCookies(): void {
-        if (!this.canLoadFromCookies()) {
+        if (!saved || this.is_restarted) {
             return;
         }
 
-        const gameData = JSON.parse(this.getCookie('game_data') || '{}');
         this.active_words = [];
-        this.max_score = gameData.max_score;
-        this.teams = gameData.teams.map((team: any) => {
+        this.max_score = saved.max_score;
+        this.teams = saved.teams.map((team: any) => {
             const newTeam = new Team(team.name);
             newTeam.score = team.score;
             newTeam.index = team.index;
@@ -250,30 +242,45 @@ export default class Game {
 
             return newTeam;
         });
-        this.is_in_progress = gameData.is_in_progress;
-        this.active_team_index = gameData.active_team_index;
-        this.turn_timer = gameData.turn_timer;
-        this.is_applying_score = gameData.is_applying_score;
-        this.is_finished = gameData.is_finished;
+        this.is_in_progress = saved.is_in_progress;
+        this.active_team_index = saved.active_team_index;
+        this.turn_timer = 0;
+        this.is_applying_score = false;
+        this.is_finished = saved.is_finished;
         this.winning_team = this.teams.find(team => team.score >= this.max_score) ?? null;
 
-        this.available_people = JSON.parse(this.getCookie('available_people') || '[]');
-        this.available_places = JSON.parse(this.getCookie('available_places') || '[]');
-        this.available_wildcards = JSON.parse(this.getCookie('available_wildcards') || '[]');
-        this.available_media = JSON.parse(this.getCookie('available_media') || '[]');
-        this.available_brands = JSON.parse(this.getCookie('available_brands') || '[]');
+        for (const category of CATEGORIES) {
+            this.available[category] = saved.available?.[category] ?? [...this.words[category]];
+        }
     }
 
-    public static clearCookies() {
-        document.cookie = 'game_data=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        document.cookie = 'available_people=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        document.cookie = 'available_places=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        document.cookie = 'available_wildcards=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        document.cookie = 'available_media=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
-        document.cookie = 'available_brands=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;';
+    public canLoadSaved(): boolean {
+        return Game.readSaved() !== null && !this.is_restarted;
     }
 
-    public canLoadFromCookies() {
-        return this.getCookie('game_data') !== null && !this.is_restarted;
+    public static readSaved(): any | null {
+        try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
+
+            if (!saved || !(saved.expires_at > Date.now())) {
+                return null;
+            }
+
+            return saved;
+        } catch {
+            return null;
+        }
+    }
+
+    public static clearSaved(): void {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // Nothing saved if storage isn't available
+        }
+    }
+
+    public static emptyWordLists(): WordLists {
+        return { people: [], places: [], wildcards: [], media: [], brands: [] };
     }
 }

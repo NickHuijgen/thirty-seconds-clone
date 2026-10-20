@@ -1,4 +1,4 @@
-import Player from './Player';
+import Player from './Player.ts';
 
 export default class Team {
     name: string;
