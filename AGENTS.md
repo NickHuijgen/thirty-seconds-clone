@@ -19,24 +19,28 @@ Consult these guides before working on related tasks:
 - [Directory structure](https://nuxt.com/docs/guide/directory-structure) — this project uses the *root* layout, not `app/` (see Invariants)
 - [Pages and routing](https://nuxt.com/docs/guide/directory-structure/pages)
 - [Static hosting / `nuxt generate`](https://nuxt.com/docs/getting-started/deployment#static-hosting)
-- [Tailwind CSS v3](https://v3.tailwindcss.com/docs)
+- [Tailwind CSS v4](https://tailwindcss.com/docs)
+- [Node test runner](https://nodejs.org/api/test.html)
 
 # 30 Seconds
 
 A browser clone of the Dutch party game *30 Seconds*, Dutch only, live at
 https://nickhuijgen.github.io/thirty-seconds-clone/. One phone is passed
 around the table: the active player sees five words (one person, place,
-wildcard, film/series and brand) and has 30 seconds to describe them to
-their teammates; afterwards they tick the words that were guessed, and
+wildcard, film/series/song and brand) and has 30 seconds to describe them
+to their teammates; afterwards they tick the words that were guessed, and
 each guessed word is one point. First team to the target score wins.
 
-Nuxt 4 SPA (`ssr: false`), Vue 3 `<script setup>`, Tailwind CSS v3, no
+Nuxt 4 SPA (`ssr: false`), Vue 3 `<script setup>`, Tailwind CSS v4, no
 backend. `npm run generate` produces a static site that GitHub Pages
-serves; GitHub Actions builds and deploys it on every push to `main` —
-pushing to `main` *is* deploying.
+serves; GitHub Actions type-checks, tests, builds and deploys it on every
+push to `main` — pushing to `main` *is* deploying.
 
 Started in October 2024 from the Nuxt 3 starter; upgraded to Nuxt 4 in
-January 2026 without moving to the Nuxt 4 `app/` directory layout.
+January 2026 without moving to the Nuxt 4 `app/` directory layout. In
+October 2026 it moved to Tailwind 4, saved games moved from cookies to
+`localStorage`, and it got tests, a web app manifest and a screen wake
+lock.
 
 ## Priorities
 
@@ -50,30 +54,35 @@ wins; never make a choice that only looks or works right on desktop.
   to not be broken; don't spend effort on desktop-specific layouts,
   hover-only affordances or keyboard shortcuts as a primary interaction.
 - Touch first: every control must work by tap, and `hover:` styles are
-  decoration only, never the only way to discover something.
+  decoration only, never the only way to discover something. (Tailwind 4
+  only applies `hover:` on devices that can hover, so on phones they
+  don't fire at all.)
 - Large tap targets and readable words at arm's length — the active
   player is glancing at the screen while talking.
 - Nothing should be accidentally triggerable mid-turn. Tapping the timer
   circle ends the turn early (`forceEndTurn()`); keep that deliberate,
   don't add other one-tap destructive actions during a turn.
 - A refresh or a locked screen must not lose the game: that's what the
-  cookie persistence is for (see Persistence). Don't break "Ga verder met
-  bestaand spel".
+  saved game is for (see Persistence), and the wake lock keeps the screen
+  on in the first place. Don't break "Ga verder met bestaand spel".
+- It should feel like an app when added to the home screen: the manifest
+  opens it standalone, in portrait, with the emerald theme colour.
 - Keep it light: no new client libraries for things Vue already does.
 
 ## Invariants
 
-Places that have to say the same thing or it silently breaks. None of
-these fail a build, and there are no tests yet.
+Places that have to say the same thing or it silently breaks. Marked
+**[test]** where `npm test` now catches it; the rest are still on you.
 
 | If you change… | …also check | Why |
 |---|---|---|
-| Any field on `Game`, `Team` or `Player` (`models/`) | `saveToCookies()` / `loadFromCookies()` in `models/Game.ts` | Loading rebuilds `Team`/`Player` objects field by field from the cookie JSON. A new field is silently dropped on reload (it gets its constructor default); a renamed one comes back `undefined`. |
-| A word list in `public/*.json` (making it longer) | The byte size of its cookie | Each `available_<category>` list is stored in its **own cookie**, and browsers drop a cookie whose name+value exceeds 4096 bytes — silently, so the game just stops resuming. `media.json` is already at ~3810 bytes, `people.json` ~3760 (October 2026). Check with the one-liner in Verification. Adding words means moving persistence to `localStorage` first (see Known issues). |
-| The set of categories (`people`, `places`, `wildcards`, `media`, `brands`) | Every `available_*` field, `setUp()`, `setActiveWords()`, `setUsed()`, `saveToCookies()`, `loadFromCookies()` and `clearCookies()` | The five categories are written out by hand in all of these; there is no list to loop over. Miss one and that category either repeats words or never persists. |
-| The turn length (`30` in `startTurn()`) | The `/ 30` in `ActiveTurn.vue`'s `stroke-dasharray` | The timer ring computes its fill from the same literal. |
+| **[test]** Any field on `Game`, `Team` or `Player` that must survive a reload | `save()` / `loadSaved()` in `models/Game.ts` | The save lists every field by hand and loading rebuilds `Team`/`Player` objects field by field. A new field is silently dropped on reload (it gets its constructor default). `test/game.test.ts` pins the saved keys and the round trip, so a new field means updating both methods *and* that test. |
+| **[test]** A word list in `public/*.json` | `test/words.test.ts` | Format, no duplicates within or across lists (case- and accent-insensitive), at least 100 words each. Use the `edit-words` skill. |
+| The set of categories | `CATEGORIES` and `Game.emptyWordLists()` in `models/Game.ts`, `utils/words.ts`, and a `public/<category>.json` | Everything else loops over `CATEGORIES`. The `WordLists` type makes a missing key in `utils/words.ts` or `emptyWordLists()` a type error (`npm run check`). |
 | The `nuxt` version in `package.json` | `vue-router` (and `vue`) in `package.json` | Both are listed as direct dependencies, so their ranges must stay compatible with what Nuxt itself requires (`npm view nuxt@<version> dependencies`). Nuxt 4.6 needs `vue-router` ^5, for example. |
-| `baseURL` in `nuxt.config.ts` | The GitHub repo name, and the `href: 'favicon.svg'` (relative on purpose) | GitHub Pages serves the site under `/<repo-name>/`. Assets and routes resolve against `baseURL`. |
+| `baseURL` in `nuxt.config.ts` | The GitHub repo name; the relative `href`s in `app.head.link`; `start_url`/`scope` in `public/manifest.webmanifest` | GitHub Pages serves the site under `/<repo-name>/`. The head links and the manifest use relative paths on purpose, so they resolve under whatever `baseURL` is — don't make them absolute. |
+| `theme_color` in `public/manifest.webmanifest` | The `theme-color` meta in `nuxt.config.ts` and the background in `design/app-icon.svg` | The same emerald (`#047857`, Tailwind `emerald-700`), stated three times. |
+| The app icon | `public/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` | All three are rendered from `design/app-icon.svg`; the command is in a comment at the top of that file. The hourglass stays inside the middle 50%, so Android's maskable crop never cuts it. |
 | Adding an `app/` directory | Everything | Nuxt 4 uses `app/` as `srcDir` when it exists and falls back to the project root when it doesn't. Creating `app/` (even an empty one for a single file) moves the source root and makes `pages/`, `components/` and `app.vue` disappear. Migrating to `app/` is a deliberate, all-at-once move. |
 | Which component shows when (`pages/game.vue`, `Playing.vue`) | The flags on `Game` (see Game flow) | Screens are picked purely from `is_in_progress`, `is_finished`, `is_applying_score` and `turn_timer === 0`. A new state needs a flag *and* its place in that `v-if` chain. |
 
@@ -84,15 +93,25 @@ these fail a build, and there are no tests yet.
   class (`type: Game`).
 - All game logic lives in the model classes (`models/Game.ts`,
   `Team.ts`, `Player.ts`). Components read state from the `Game` instance
-  and call its methods; they don't compute game rules themselves. Keep it
-  that way — it's what would make the rules testable outside a browser.
+  and call its methods; they don't compute game rules themselves.
+- **The models run under plain Node** — that's what makes them testable
+  without a browser or a bundler. So in `models/`:
+  - imports are relative and carry the `.ts` extension
+    (`import Team from './Team.ts'`), no `~` alias;
+  - no imports of JSON, audio or anything Vite-specific. The word lists
+    and the sound loader are passed into the `Game` constructor
+    (`new Game(50, words, loadSound)` in `pages/game.vue`), from
+    `utils/words.ts` and `utils/sounds.ts`;
+  - only TypeScript that Node can strip: no `enum`, no `namespace`, no
+    constructor parameter properties;
+  - browser APIs only behind a guard: `localStorage` is used inside
+    `try`/`catch` (it's missing in Node and can throw in private mode).
 - State is one `Game` instance in a `ref()` in `pages/game.vue`, passed
   down as a prop. Components mutate it through its methods (and, in the
   setup forms, `v-model` directly on `team.name` / `player.name`). There
   is no Pinia/store; don't add one without asking.
-- `ssr: false`: the model code touches `document`, `Audio` and
-  `setInterval` freely. If SSR is ever turned on, all of that needs
-  guarding.
+- Browser-only behaviour that isn't a game rule goes in a composable
+  (`composables/useWakeLock.ts`), not in the models.
 - UI copy is Dutch and lives directly in the templates. No i18n layer.
 - Component imports are explicit (`import X from "~/components/X.vue"`)
   even though Nuxt auto-imports them; follow whichever the file you're in
@@ -101,7 +120,8 @@ these fail a build, and there are no tests yet.
   for model fields (`max_score`, `active_team_index`), `camelCase` for
   methods. There is no linter or formatter configured.
 - `// @ts-ignore` is used above array-index accesses that TypeScript
-  flags as possibly `undefined`. Prefer a real guard in new code.
+  flags as possibly `undefined` (`noUncheckedIndexedAccess` is on).
+  Prefer a real guard in new code.
 - Element ids in components that render more than once (team and player
   inputs) come from `useId()`, never a literal — a literal id repeats for
   every team/player.
@@ -111,27 +131,28 @@ these fail a build, and there are no tests yet.
 
 ## Game flow
 
-`pages/game.vue` creates `new Game(50)` with two default teams of two
-players ("Team 1", "Speler 1" …) and switches between three screens:
+`pages/game.vue` creates `new Game(50, words, loadSound)` with two
+default teams of two players ("Team 1", "Speler 1" …) and switches
+between three screens:
 
 1. **Setup** (`GameSetup.vue` → `TeamSetup.vue` → `PlayerSetup.vue`,
    `RemoveButton.vue`) — while `!is_in_progress && !is_finished`. Add or
    rename teams and players (minimum 2 teams, 2 players per team — the
    remove button only shows above that), pick the target score (10, 25,
-   50, 100). "Begin nieuw spel" calls `setUp()`: clears cookies (unless
-   restarting), shuffles teams and each team's players
-   (`generateTeamIndexes()`), loads the word lists, sets
-   `is_in_progress`. If a saved game exists, "Ga verder met bestaand spel"
-   calls `loadFromCookies()` instead.
+   50, 100). "Begin nieuw spel" calls `setUp()`: clears the saved game
+   (unless restarting), shuffles teams and each team's players
+   (`generateTeamIndexes()`), copies the word lists into `available`,
+   sets `is_in_progress`. If a saved game exists, "Ga verder met bestaand
+   spel" calls `loadSaved()` instead.
 2. **Playing** (`Playing.vue`) — picks one of three sub-screens:
    - `PreTurn.vue` (`turn_timer === 0`): whose turn it is, who may guess,
      the leaderboard, who's next. "Start beurt" → `startTurn()`.
    - `ActiveTurn.vue` (timer running): the five words and the countdown
-     ring. Plays `turn-start.mp3` at the start and `vine-boom.mp3` at
-     1 second left. Tapping the ring → `forceEndTurn()`.
+     ring (`TURN_SECONDS`, 30). Plays `turn-start` at the start and
+     `vine-boom` at 1 second left. Tapping the ring → `forceEndTurn()`.
    - `PostTurn.vue` (`is_applying_score`): tap the guessed words, "Klaar"
      → `finishTurn(count)`: adds the score, checks for a winner, advances
-     to the next team and saves to cookies.
+     to the next team and saves.
 3. **Post game** (`PostGame.vue`, `is_finished`): winner and final
    leaderboard. "Begin opnieuw" → `restart()` keeps teams and players,
    resets scores, and goes back to setup.
@@ -140,41 +161,55 @@ Turn order: teams are shuffled once at setup and play in index order;
 within a team, players rotate through their shuffled index. Both
 `activeTeam()` and `activePlayer()` look objects up by their `index`
 field, **not** by array position — so sorting or reordering the arrays is
-safe, but the indexes must stay `0…n-1` and unique.
+safe (the leaderboard sorts a copy), but the indexes must stay `0…n-1`
+and unique.
+
+Sounds: `startTurn()` loads both sounds inside the "Start beurt" tap and
+plays `vine-boom` from the timer later. Keep the loading inside the tap:
+mobile browsers only allow audio that a user gesture started.
+
+While a game is in progress and not finished, `useWakeLock()` holds a
+screen wake lock, so the phone doesn't dim or lock while it's handed
+around. The browser drops it whenever the page is hidden; it's requested
+again on `visibilitychange`. Where the API doesn't exist, nothing happens.
 
 ## Word lists
 
 `public/{people,places,wildcards,media,brands}.json`, each
-`{ "data": string[] }`, ~140–260 Dutch-audience entries per category.
-They're imported into the bundle by `models/Game.ts` (and, because they're
-in `public/`, also served as files — that's incidental, nothing fetches
-them).
+`{ "data": string[] }`, ~140–250 Dutch-audience entries per category.
+`utils/words.ts` imports them into the bundle (and, because they're in
+`public/`, they're also served as files — that's incidental, nothing
+fetches them). **Edit them with the `edit-words` skill**
+(`.claude/skills/edit-words/SKILL.md`): it covers what fits each
+category, Dutch spelling and the checks.
 
 - Each turn takes one random word per category, and `setActiveWords()`
-  removes them from the `available_*` lists straight away, so they don't
-  come back within a game — also not after a resume.
+  removes them from `available` straight away, so they don't come back
+  within a game — also not after a resume.
 - No word may appear twice in a list, or in two lists: either can put
-  the same word on screen twice. All lists were deduplicated in October
-  2026 (`Casablanca` stayed in places, `Halloween` in wildcards, `Diesel`
-  in brands). The check is in Verification.
+  the same word on screen twice. `test/words.test.ts` enforces it.
 - Nothing handles a category running out: `getRandom()` on an empty list
   returns `undefined` and an empty card shows. At ~140 wildcards that's
-  140 turns, so it's theoretical, but don't shrink lists far.
-- Spelling and names are Dutch where a Dutch name exists ("Londen",
-  "De Godfather").
+  140 turns, so it's theoretical; the tests keep every list at ≥ 100.
 
 ## Persistence
 
-The game is saved to cookies (4-hour expiry, `path=/`) at the end of
-every turn in `finishTurn()` — so a reload resumes at the start of the
-next turn, never mid-turn. Six cookies: `game_data` (the `Game` minus the
-word lists) and one `available_<category>` per word list. See the cookie
-size row in Invariants.
+The game is saved to `localStorage` under one key, `thirty-seconds-game`
+(`STORAGE_KEY`), at the end of every turn in `finishTurn()` — so a reload
+resumes at the start of the next turn, never mid-turn. The save holds
+`max_score`, the teams and players, `active_team_index`, the flags and
+the remaining `available` words, plus `expires_at`: a save older than 4
+hours is ignored, like the cookies it replaced.
 
-`canLoadFromCookies()` decides whether the "Ga verder" button shows.
-`clearCookies()` runs when a *new* game is set up (not on `restart()`).
-`winning_team` isn't stored; `loadFromCookies()` derives it from the
-scores, so resuming a finished game lands on the winner screen.
+`canLoadSaved()` decides whether the "Ga verder" button shows.
+`clearSaved()` runs when a *new* game is set up (not on `restart()`).
+`winning_team` isn't stored; `loadSaved()` derives it from the scores, so
+resuming a finished game lands on the winner screen. A missing, expired
+or corrupt save is treated as no save; a failing write (private mode,
+full storage) is logged and the game carries on without one.
+
+Games saved as cookies before October 2026 aren't migrated; those
+cookies expired within 4 hours of the switch.
 
 ## Routes
 
@@ -185,20 +220,30 @@ scores, so resuming a finished game lands on the winner screen.
 Everything is under `baseURL: '/thirty-seconds-clone/'` (GitHub Pages
 project site). `nuxt generate` writes `index.html`, `game/index.html`,
 `200.html` and `404.html`; with `ssr: false` these are empty SPA shells.
+The manifest's `start_url` is the welcome page.
 
 ## Style
 
-- Tailwind v3 via PostCSS (`nuxt.config.ts` → `postcss.plugins`), with
-  `@tailwind` directives in `app.vue`'s global `<style>`. Utility classes
-  directly in the markup; scoped `<style>` only where Tailwind doesn't
-  fit (the SVG timer in `ActiveTurn.vue`).
+- Tailwind v4 through `@tailwindcss/vite` (`nuxt.config.ts` →
+  `vite.plugins`); `assets/css/main.css` imports it and holds the only
+  global CSS. No `tailwind.config.js` — v4 is configured in CSS. Utility
+  classes directly in the markup; scoped `<style>` only where Tailwind
+  doesn't fit (the SVG timer in `ActiveTurn.vue`).
+- `main.css` restores two v3 defaults the components rely on (grey
+  `border` colour, `cursor: pointer` on buttons) and sets the one focus
+  style for every control: a 2px `emerald-700` outline on
+  `:focus-visible`.
+- v4 names: `bg-linear-to-*` (not `bg-gradient-to-*`), `rounded-sm` is
+  v3's `rounded`, `shadow-xs` is v3's `shadow-sm`. v4's palette is OKLCH,
+  so colours are a touch more vivid than under v3.
 - The look: full-height green→blue gradient background
-  (`bg-gradient-to-tr from-green-100 to-blue-200`), content in a white
+  (`bg-linear-to-tr from-green-100 to-blue-200`), content in a white
   rounded card with `shadow-2xl`. Primary buttons share one long class
   string (emerald gradient) copied across components; secondary buttons
   are bordered grey. Reuse those exact strings for consistency.
-- Icons: Material Icons from Google Fonts (`@import` in `app.vue`), used
-  as ligatures (`<span class="material-icons">close</span>`).
+- Icons: Material Icons from Google Fonts (a `<link>` in
+  `nuxt.config.ts`), used as ligatures
+  (`<span class="material-icons">close</span>`).
 
 ## Accessibility
 
@@ -208,45 +253,36 @@ project site). `nuxt generate` writes `index.html`, `game/index.html`,
   "Verwijder speler"); padding with a matching negative margin gives its
   18px icon a bigger tap area without moving it.
 - The timer ring is a button labelled "Beëindig beurt"; the SVG inside
-  is `aria-hidden`.
+  is `aria-hidden`. A `sr-only` `aria-live="polite"` line announces
+  "Nog 10 seconden" and "Nog 5 seconden" — deliberately not every second,
+  which would talk over the players.
 - The word tiles in `PostTurn.vue` are toggle buttons with
-  `aria-pressed`.
-
-Still open:
-- Word-tile selection is shown by colour only (green background/border)
-  for sighted users; a check icon would fix it.
-- The countdown isn't announced to screen readers.
-- Buttons have no custom focus style (browser default only).
+  `aria-pressed`, and a selected tile shows a check icon as well as the
+  green colour.
+- Every control has a visible `:focus-visible` outline (`main.css`).
+- `<html lang="nl">`.
 
 ## Known issues
 
 Not fixed yet. Ask before fixing as a side effect of something else.
 
-- **Cookie size ceiling** — see Invariants. Moving to `localStorage`
-  (≈5 MB, one key) would remove it.
-- **Remaining `npm audit` findings** (15 as of October 2026, all in
-  build/dev tooling, none in the shipped bundle): Tailwind 3's file
-  watcher (`braces`, `micromatch`, `postcss-selector-parser`) — gone with
-  Tailwind 4 — and Nuxt's dev server (`listhen` → `node-forge`), which
-  waits on an upstream Nuxt release. `npm audit fix --force` would
-  *downgrade* Nuxt; don't run it.
-- **Tailwind is still v3.** v4 is a migration, not a bump: new
-  PostCSS/Vite plugin, CSS-first config, and renamed utilities this
-  project uses (`bg-gradient-to-*` → `bg-linear-to-*`, a different
-  `shadow-*`/`rounded-*` scale, `border` defaulting to `currentColor`).
-  The inflatie calculator uses v4 via `@tailwindcss/vite` as a reference.
+- **Remaining `npm audit` findings** (11 high as of October 2026, all in
+  Nuxt's own build/dev tooling, none in the shipped bundle): `nitropack`
+  → `globby`/`fast-glob`/`micromatch`/`braces`, and `listhen` →
+  `node-forge` (dev server). They wait on an upstream Nuxt release.
+  `npm audit fix --force` would *downgrade* Nuxt; don't run it.
 - `public/robots.txt` is empty (allows everything — fine, but it's a
   placeholder).
-- No web app manifest or `theme-color`, so "add to home screen" gives a
-  plain browser tab; and nothing keeps the screen awake during a turn
-  (Screen Wake Lock API).
+- No service worker, so the game needs a connection to load. It's a
+  small static site; offline support would be the next step towards a
+  real app, but it adds caching to reason about on every deploy.
 
 ## Hosting
 
 | Piece | Where | Setting |
 |---|---|---|
 | Repo | GitHub `NickHuijgen/thirty-seconds-clone`, public | Default branch `main`. |
-| Build & deploy | `.github/workflows/deploy.yml` | On push to `main` (and manual dispatch): Node 22, `npm ci`, `npm run generate`, upload `.output/public`, deploy with `actions/deploy-pages`. |
+| Build & deploy | `.github/workflows/deploy.yml` | On push to `main` (and manual dispatch): Node 22, `npm ci`, `npm run check`, `npm test`, `npm run generate`, upload `.output/public`, deploy with `actions/deploy-pages`. A failing type check or test stops the deploy. |
 | Hosting | GitHub Pages (build type "workflow") | https://nickhuijgen.github.io/thirty-seconds-clone/ — no custom domain. |
 
 The `dist` symlink in the project root points at `.output/public`; it's
@@ -261,34 +297,42 @@ gitignored and only there for convenience.
 
 ## Verification
 
-There are no tests, no linter and no type-check script yet. Before
-calling a change done:
+Before calling a change done:
 
-- `npm run generate` must succeed (it's what CI runs). `npm run build`
-  alone isn't what's deployed.
-- Type-check without adding dependencies (expect no output):
-  ```
-  npx -y -p typescript@5 -p vue-tsc vue-tsc --noEmit -p tsconfig.json
-  ```
-  `typescript@5` is pinned because `vue-tsc` doesn't run on newer
-  TypeScript yet. Adding these as devDependencies plus a script is
-  fine, but ask first.
+- `npm run verify` — `check`, then `test`, then `generate`; the same
+  steps CI runs before deploying. Expect 0 type errors and every test
+  passing.
+- `npm run check` — `vue-tsc --noEmit` over the app *and* the tests.
+  TypeScript is pinned to 5.x because `vue-tsc` doesn't run on newer
+  TypeScript yet.
+- `npm test` — `node --test "test/*.test.ts"`. No dependency, no
+  browser: Node strips the types and runs the real models.
+  - `test/game.test.ts` — setup and shuffling, drawing words without
+    repeats, the timer and its sounds (with `mock.timers`), turn order,
+    scoring and winning, restart, and the whole save/resume contract:
+    round trip, no repeated words after a resume, the winner after
+    resuming a finished game, expired/corrupt/missing saves, failing or
+    missing `localStorage`, and exactly which keys are saved.
+  - `test/words.test.ts` — the real word lists: format, trimmed
+    non-empty words, no duplicates within or across lists, ≥ 100 each.
+  - `test/helpers.ts` — a Map-backed `localStorage`, fixture word lists,
+    a sound recorder, and `newGame()`/`playTurn()`.
+  When you fix a bug in the models, add the test that would have caught
+  it.
 - Play a full game in the browser at phone width (~390px), with
   `npm run dev` or `npx serve .output/public` (then open
   `/thirty-seconds-clone/`):
   - add and remove a team and a player (remove buttons only above 2);
   - start, play a turn to the end of the timer, and one ended early by
     tapping the ring; both sounds play;
-  - tick some words, "Klaar", check the score and that the next team and
-    player are right;
+  - tick some words (check icon appears), "Klaar", check the score and
+    that the next team and player are right;
   - reload between turns → "Ga verder met bestaand spel" resumes with
     the same scores and turn;
   - play to the target score (pick 10) → winner screen → "Begin opnieuw"
-    keeps the teams and resets the scores.
-- If you edited a word list, check it's valid JSON, has no duplicates
-  (within or across lists), and every cookie still fits:
-  ```
-  node -e "const cs=['people','places','wildcards','media','brands'],seen={};for(const c of cs){const a=require('./public/'+c+'.json').data;a.forEach(w=>(seen[w]=seen[w]||[]).push(c));console.log(c,a.length,'dupes',a.length-new Set(a).size,'cookie bytes',Buffer.byteLength('available_'+c+'='+JSON.stringify(a)))}console.log('in several lists',Object.entries(seen).filter(([,c])=>c.length>1))"
-  ```
-  Every cookie must stay well under 4096 bytes. The files are
-  `JSON.stringify(…, null, 2)` plus a trailing newline; keep that format.
+    keeps the teams and resets the scores;
+  - the screen stays on during a game: wrap `navigator.wakeLock.request`
+    in the console to log calls, or watch the phone not dim.
+- If you touched `nuxt.config.ts` head links, the manifest or the icons:
+  open DevTools → Application → Manifest on the built site and check it
+  parses, every icon loads, and Chrome offers to install it.
