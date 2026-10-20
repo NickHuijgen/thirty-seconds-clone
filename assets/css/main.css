@@ -1,5 +1,43 @@
 @import "tailwindcss";
 
+/* Animations. Use them as motion-safe:animate-*, so they're skipped when the phone asks for reduced motion. */
+@theme {
+    --animate-pop: pop 200ms ease-out;
+    --animate-deal-in: deal-in 250ms ease-out both;
+    --animate-score-pop: score-pop 1200ms ease-out 400ms both;
+    --animate-flash: flash 500ms ease-out both;
+    --animate-bounce-in: bounce-in 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    --animate-urgent: urgent 1s ease-in-out infinite;
+
+    @keyframes pop {
+        50% { transform: scale(1.04); }
+    }
+
+    @keyframes deal-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    }
+
+    @keyframes score-pop {
+        0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+        20% { opacity: 1; transform: translateY(0) scale(1.1); }
+        70% { opacity: 1; transform: translateY(-8px) scale(1); }
+        100% { opacity: 0; transform: translateY(-16px); }
+    }
+
+    @keyframes flash {
+        from { opacity: 0.6; }
+        to { opacity: 0; }
+    }
+
+    @keyframes bounce-in {
+        from { opacity: 0; transform: scale(0.3); }
+    }
+
+    @keyframes urgent {
+        50% { transform: scale(1.08); }
+    }
+}
+
 @layer base {
     /* Tailwind v4 made the default border colour currentColor; keep the v3 grey */
     *,
@@ -20,5 +58,44 @@
     :focus-visible {
         outline: 2px solid var(--color-emerald-700);
         outline-offset: 2px;
+    }
+
+    /* No grey flash on tap, no double-tap zoom delay */
+    html {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    /* The page itself never scrolls or bounces: every screen is exactly one viewport tall
+       and scrolls its own content (Screen.vue). Otherwise a pixel too many lets the whole
+       page move and shows the white page behind the screen. */
+    html,
+    body {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+}
+
+/* Screen changes (<Transition name="screen">): a short slide and fade */
+@media (prefers-reduced-motion: no-preference) {
+    .screen-enter-active,
+    .screen-leave-active {
+        transition: opacity 120ms ease, transform 120ms ease;
+    }
+
+    .screen-enter-from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+
+    .screen-leave-to {
+        opacity: 0;
+        transform: translateX(-24px);
+    }
+
+    /* Leaderboard rows sliding into their new order (<TransitionGroup name="leaderboard">) */
+    .leaderboard-move {
+        transition: transform 500ms ease;
     }
 }

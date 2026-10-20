@@ -1,30 +1,39 @@
 <template>
-  <div class="h-screen w-full bg-linear-to-tr from-green-100 to-blue-200 flex justify-center py-4">
-    <div class="my-auto">
-      <p class="font-bold text-center text-xl p-4">
-        Welkom bij 30 seconden!
-      </p>
+  <div class="bg-emerald-700 text-white [&_:focus-visible]:outline-white">
+    <Screen>
+      <div class="my-auto text-center">
+        <span
+            class="material-icons text-8xl! motion-safe:animate-bounce-in"
+            aria-hidden="true"
+        >
+          hourglass_top
+        </span>
 
-      <p class="font-bold text-center text-gray-500 p-4">
-        Ben je klaar om te spelen?
-      </p>
+        <h1 class="mt-4 text-4xl font-extrabold">
+          Welkom bij 30 seconden!
+        </h1>
 
-      <div class="flex justify-center items-center p-4">
+        <p class="mt-3 text-lg text-emerald-50">
+          Omschrijf zoveel mogelijk woorden voor je team, op één telefoon die de kring rondgaat.
+        </p>
+
+        <p class="mt-6 font-semibold text-emerald-100">
+          Ben je klaar om te spelen?
+        </p>
+      </div>
+
+      <template #action>
         <RouterLink
             to="/game"
-            class="px-8 py-3 font-semibold rounded-sm bg-linear-to-br text-white shadow-2xl hover:bg-linear-to-tr from-emerald-600 to-emerald-800"
+            class="flex h-14 w-full items-center justify-center rounded-2xl bg-white text-lg font-semibold text-emerald-700 shadow-lg transition active:scale-[0.98]"
         >
           Begin spel
         </RouterLink>
-      </div>
-    </div>
+      </template>
+    </Screen>
   </div>
 </template>
 
 <script setup lang="ts">
-
+import Screen from "~/components/Screen.vue";
 </script>
-
-<style scoped>
-
-</style>

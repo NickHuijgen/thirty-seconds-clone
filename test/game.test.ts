@@ -2,6 +2,7 @@
 import { test, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import Game, { CATEGORIES, STORAGE_KEY, TURN_SECONDS } from '../models/Game.ts';
+import Team, { TEAM_COLOURS } from '../models/Team.ts';
 import { installStorage, newGame, playTurn, recordingSounds, wordLists, type MemoryStorage } from './helpers.ts';
 
 let storage: MemoryStorage;
@@ -266,4 +267,57 @@ test('the save holds only what loadSaved reads back', () => {
 
 test('Game.emptyWordLists has every category', () => {
     assert.deepEqual(Object.keys(Game.emptyWordLists()).sort(), [...CATEGORIES].sort());
+});
+
+test('every team gets its own colour, and a removed team frees its colour', () => {
+    const game = newGame({ teams: 3 });
+    assert.deepEqual(game.teams.map(t => t.colour), ['emerald', 'sky', 'amber']);
+
+    game.removeTeam(game.teams[1]!);
+    game.addTeam(new Team('Team 4'));
+    assert.deepEqual(game.teams.map(t => t.colour), ['emerald', 'amber', 'sky']);
+});
+
+test('with more teams than colours, colours repeat instead of failing', () => {
+    const game = newGame({ teams: TEAM_COLOURS.length + 2 });
+
+    assert.ok(game.teams.every(t => TEAM_COLOURS.includes(t.colour)));
+    assert.deepEqual(game.teams.slice(0, TEAM_COLOURS.length).map(t => t.colour), [...TEAM_COLOURS]);
+});
+
+test('team colours survive a resume, and old saves without colours get one', () => {
+    const game = newGame({ teams: 3 });
+    game.setUp();
+    playTurn(game, 1);
+
+    const resumed = newGame();
+    resumed.loadSaved();
+    assert.deepEqual(
+        resumed.teams.map(t => [t.name, t.colour]),
+        game.teams.map(t => [t.name, t.colour]),
+    );
+
+    const saved = JSON.parse(storage.getItem(STORAGE_KEY)!);
+    saved.teams.forEach((team: any) => delete team.colour);
+    storage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    const old = newGame();
+    old.loadSaved();
+    assert.deepEqual(old.teams.map(t => t.colour), ['emerald', 'sky', 'amber']);
+});
+
+test('the last turn score is kept for the leaderboard, but not saved or restored', () => {
+    const game = newGame();
+    game.setUp();
+    assert.equal(game.last_turn, null);
+
+    const scorer = game.activeTeam();
+    playTurn(game, 3);
+    assert.deepEqual(game.last_turn, { team_index: scorer.index, score: 3 });
+
+    const resumed = newGame();
+    resumed.loadSaved();
+    assert.equal(resumed.last_turn, null);
+
+    game.restart();
+    assert.equal(game.last_turn, null);
 });

@@ -1,11 +1,18 @@
 import Player from './Player.ts';
 
+// Each team gets one of these, so you can see whose turn it is from across the room.
+// The classes and hex values that go with each live in utils/teamColours.ts.
+export const TEAM_COLOURS = ['emerald', 'sky', 'amber', 'rose', 'violet', 'orange', 'teal', 'pink'] as const;
+
+export type TeamColour = typeof TEAM_COLOURS[number];
+
 export default class Team {
     name: string;
     score: number;
     players: Player[];
     index: number = 0;
     active_player_index: number = 0;
+    colour: TeamColour = 'emerald';
 
     public constructor(name: string) {
         this.name = name;

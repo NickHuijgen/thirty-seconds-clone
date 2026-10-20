@@ -1,27 +1,27 @@
 <template>
   <div class="relative">
+    <label
+        :for="inputId"
+        class="sr-only"
+    >
+      Speler naam
+    </label>
+    <input
+        v-model="player.name"
+        type="text"
+        name="player_name"
+        :id="inputId"
+        placeholder="Speler naam"
+        class="h-11 w-full rounded-xl border bg-gray-50 px-3"
+        :class="canRemove ? 'pr-11' : ''"
+    >
+
     <RemoveButton
+        class="absolute top-1/2 right-0.5 -translate-y-1/2"
         :can-remove="canRemove"
         label="Verwijder speler"
         @click="removePlayer()"
     />
-
-    <div>
-      <label
-          :for="inputId"
-          class="sr-only"
-      >
-        Speler naam
-      </label>
-      <input
-          v-model="player.name"
-          type="text"
-          name="player_name"
-          :id="inputId"
-          placeholder="Speler naam"
-          class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
-      >
-    </div>
   </div>
 </template>
 
@@ -50,7 +50,3 @@ function removePlayer() {
   emit('remove-player');
 }
 </script>
-
-<style scoped>
-
-</style>

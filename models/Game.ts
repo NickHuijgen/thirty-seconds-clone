@@ -1,4 +1,4 @@
-import Team from './Team.ts';
+import Team, { TEAM_COLOURS, type TeamColour } from './Team.ts';
 import Player from './Player.ts';
 
 export const CATEGORIES = ['people', 'places', 'wildcards', 'media', 'brands'] as const;
@@ -41,6 +41,9 @@ export default class Game {
 
     winning_team: Team | null = null;
 
+    // The score of the turn that just ended, for the "+3" on the leaderboard. Not saved: a resume doesn't replay it.
+    last_turn: { team_index: number, score: number } | null = null;
+
     public constructor(max_score: number, words: WordLists, loadSound: LoadSound = silent) {
         this.max_score = max_score;
         this.words = words;
@@ -54,6 +57,7 @@ export default class Game {
         this.is_applying_score = false;
         this.is_restarted = true;
         this.active_words = [];
+        this.last_turn = null;
 
         this.teams.forEach(team => {
             team.score = 0;
@@ -62,7 +66,16 @@ export default class Game {
     }
 
     public addTeam(team: Team) {
+        team.colour = this.nextColour();
         this.teams.push(team);
+    }
+
+    // The first colour no other team has, so a removed team's colour comes back first
+    public nextColour(): TeamColour {
+        const used = this.teams.map(team => team.colour);
+
+        return TEAM_COLOURS.find(colour => !used.includes(colour))
+            ?? TEAM_COLOURS[this.teams.length % TEAM_COLOURS.length]!;
     }
 
     public removeTeam(team: Team) {
@@ -79,6 +92,7 @@ export default class Game {
             this.available[category] = [...this.words[category]];
         }
 
+        this.last_turn = null;
         this.is_restarted = false;
         this.is_in_progress = true;
     }
@@ -119,6 +133,7 @@ export default class Game {
         this.is_applying_score = false;
 
         this.activeTeam().score += score;
+        this.last_turn = { team_index: this.activeTeam().index, score };
 
         if (this.activeTeam().score >= this.max_score) {
             this.is_finished = true;
@@ -203,6 +218,7 @@ export default class Game {
                 score: team.score,
                 index: team.index,
                 active_player_index: team.active_player_index,
+                colour: team.colour,
                 players: team.players.map(player => ({ name: player.name, index: player.index })),
             })),
             is_in_progress: this.is_in_progress,
@@ -227,9 +243,12 @@ export default class Game {
         }
 
         this.active_words = [];
+        this.last_turn = null;
         this.max_score = saved.max_score;
-        this.teams = saved.teams.map((team: any) => {
+        this.teams = saved.teams.map((team: any, index: number) => {
             const newTeam = new Team(team.name);
+            // Saves from before team colours existed get one by position
+            newTeam.colour = TEAM_COLOURS.includes(team.colour) ? team.colour : TEAM_COLOURS[index % TEAM_COLOURS.length]!;
             newTeam.score = team.score;
             newTeam.index = team.index;
             newTeam.active_player_index = team.active_player_index;

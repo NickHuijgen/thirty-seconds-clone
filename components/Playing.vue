@@ -1,18 +1,24 @@
 <template>
-  <div>
+  <Transition
+      name="screen"
+      mode="out-in"
+  >
     <PostTurn
-      v-if="game.is_applying_score"
-      :game="game"
+        v-if="game.is_applying_score"
+        key="post-turn"
+        :game="game"
     />
     <PreTurn
-      v-else-if="game.turn_timer === 0"
-      :game="game"
+        v-else-if="game.turn_timer === 0"
+        key="pre-turn"
+        :game="game"
     />
     <ActiveTurn
-      v-else
-      :game="game"
+        v-else
+        key="active-turn"
+        :game="game"
     />
-  </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -28,7 +34,3 @@ defineProps({
   },
 });
 </script>
-
-<style scoped>
-
-</style>

@@ -1,25 +1,26 @@
 <template>
-  <div
-      class="h-screen p-4 overflow-y-auto w-full bg-linear-to-tr from-green-100 to-blue-200 flex justify-center"
-      v-if="game"
+  <Transition
+      name="screen"
+      mode="out-in"
   >
-    <div class="my-auto bg-white p-4 rounded-md shadow-2xl">
-      <SetupForm
+    <SetupForm
         v-if="!game.is_in_progress && !game.is_finished"
+        key="setup"
         :game="game"
         @resume-game="resumeGame()"
-      />
-      <Playing
-        v-if="game.is_in_progress && !game.is_finished"
+    />
+    <Playing
+        v-else-if="!game.is_finished"
+        key="playing"
         :game="game"
-      />
-      <PostGame
-        v-if="game.is_finished"
+    />
+    <PostGame
+        v-else
+        key="finished"
         :game="game"
         @restart-game="restartGame(game)"
-      />
-    </div>
-  </div>
+    />
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -33,10 +34,12 @@ import PostGame from "~/components/PostGame.vue";
 import { words } from "~/utils/words";
 import { loadSound } from "~/utils/sounds";
 import { useWakeLock } from "~/composables/useWakeLock";
+import { useTurnHaptics } from "~/composables/useTurnHaptics";
 
 const game = ref(new Game(50, words, loadSound));
 
 useWakeLock(computed(() => game.value.is_in_progress && !game.value.is_finished));
+useTurnHaptics(game);
 
 const team1 = new Team('Team 1');
 

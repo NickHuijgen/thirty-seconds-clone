@@ -81,7 +81,8 @@ Places that have to say the same thing or it silently breaks. Marked
 |---|---|---|
 | **[test]** Any field on `Game`, `Team` or `Player` that must survive a reload | `save()` / `loadSaved()` in `models/Game.ts` | The save lists every field by hand and loading rebuilds `Team`/`Player` objects field by field. A new field is silently dropped on reload (it gets its constructor default). `test/game.test.ts` pins the saved keys and the round trip, so a new field means updating both methods *and* that test. |
 | **[test]** A word list in `public/*.json` | `test/words.test.ts` | Format, no duplicates within or across lists (case- and accent-insensitive), at least 100 words each. Use the `edit-words` skill. |
-| The set of categories | `CATEGORIES` and `Game.emptyWordLists()` in `models/Game.ts`, `utils/words.ts`, and a `public/<category>.json` | Everything else loops over `CATEGORIES`. The `WordLists` type makes a missing key in `utils/words.ts` or `emptyWordLists()` a type error (`npm run check`). |
+| The set of categories | `CATEGORIES` and `Game.emptyWordLists()` in `models/Game.ts`, `utils/words.ts`, `CATEGORY_INFO` in `utils/categories.ts`, and a `public/<category>.json` | Everything else loops over `CATEGORIES`. The `WordLists` and `Record<Category, …>` types make a missing key a type error (`npm run check`). The word cards rely on `active_words` being in `CATEGORIES` order to pick each card's icon. |
+| `TEAM_COLOURS` (`models/Team.ts`) | `TEAM_STYLES` in `utils/teamColours.ts` | `TEAM_STYLES` is a `Record<TeamColour, …>`, so a new colour without styles is a type error. Its classes must be written out in full (see Style). |
 | `BASE` in `vite.config.ts` | The GitHub repo name | GitHub Pages serves the site under `/<repo-name>/`. Everything else follows `BASE`: Vite prefixes the absolute paths in `index.html` (`/favicon.svg` → `/thirty-seconds-clone/favicon.svg`) and the router uses `import.meta.env.BASE_URL`. Keep `index.html` paths **absolute** — a relative `favicon.svg` would break on `/game/`. The manifest is the exception: its `start_url`, `scope` and icons are relative to the manifest file itself, so they stay relative. |
 | A route in `main.ts` | `ROUTES` in `vite.config.ts` | GitHub Pages has no SPA fallback, so the build copies `index.html` to `<route>/index.html` for every route in `ROUTES` (and to `404.html`). A route missing there still works when navigated to in the app, but 404s on reload. |
 | `theme_color` in `public/manifest.webmanifest` | The `theme-color` meta in `index.html` and the background in `design/app-icon.svg` | The same emerald (`#047857`, Tailwind `emerald-700`), stated three times. |
@@ -136,6 +137,13 @@ Places that have to say the same thing or it silently breaks. Marked
 - Clickable things are `<button type="button">`, not a `<div>`/`<span>`
   with `@click`. Toggles carry `aria-pressed`; icon-only buttons an
   `aria-label` (the icon itself `aria-hidden`).
+- Animations: no animation library. CSS transitions/keyframes for UI,
+  a canvas for particle effects (`components/Confetti.vue`). Every
+  animation respects `prefers-reduced-motion` (skip it, or fall back to
+  an instant change), never blocks taps (`pointer-events-none` on
+  overlays), and never delays the game — a player must be able to tap
+  the next button while it's still running. Movement is scaled to the
+  frame time, so 120 Hz phones don't play it twice as fast.
 
 ## Game flow
 
@@ -147,22 +155,29 @@ between three screens:
    `RemoveButton.vue`) — while `!is_in_progress && !is_finished`. Add or
    rename teams and players (minimum 2 teams, 2 players per team — the
    remove button only shows above that), pick the target score (10, 25,
-   50, 100). "Begin nieuw spel" calls `setUp()`: clears the saved game
+   50, 100 — radio buttons styled as four tap targets). "Begin nieuw spel" calls `setUp()`: clears the saved game
    (unless restarting), shuffles teams and each team's players
    (`generateTeamIndexes()`), copies the word lists into `available`,
    sets `is_in_progress`. If a saved game exists, "Ga verder met bestaand
    spel" calls `loadSaved()` instead.
 2. **Playing** (`Playing.vue`) — picks one of three sub-screens:
-   - `PreTurn.vue` (`turn_timer === 0`): whose turn it is, who may guess,
-     the leaderboard, who's next. "Start beurt" → `startTurn()`.
-   - `ActiveTurn.vue` (timer running): the five words and the countdown
-     ring (`TURN_SECONDS`, 30). Plays `turn-start` at the start and
-     `vine-boom` at 1 second left. Tapping the ring → `forceEndTurn()`.
-   - `PostTurn.vue` (`is_applying_score`): tap the guessed words, "Klaar"
-     → `finishTurn(count)`: adds the score, checks for a winner, advances
-     to the next team and saves.
-3. **Post game** (`PostGame.vue`, `is_finished`): winner and final
-   leaderboard. "Begin opnieuw" → `restart()` keeps teams and players,
+   - `PreTurn.vue` (`turn_timer === 0`) — the handoff screen, full-screen
+     in the active team's colour: "Geef de telefoon aan **Speler 4**",
+     the leaderboard, who may guess, who's next. "Start beurt" →
+     `startTurn()`.
+   - `ActiveTurn.vue` (timer running): the five words as big cards with
+     their category icon (`utils/categories.ts`), and the countdown ring
+     (`TURN_SECONDS`, 30), which turns amber at 10 s and red (pulsing) at
+     5 s. Plays `turn-start` at the start and `vine-boom` at 1 second
+     left. Tapping the ring → `forceEndTurn()`.
+   - `PostTurn.vue` (`is_applying_score`): "Tijd is om!", a red flash,
+     the same cards as toggles, "Klaar · N geraden" →
+     `finishTurn(count)`: adds the score, records `last_turn`, checks for
+     a winner, advances to the next team and saves.
+3. **Post game** (`PostGame.vue`, `is_finished`): full-screen in the
+   winner's colour, a confetti burst in that colour (`Confetti.vue`,
+   ~5 s), the trophy, and the final leaderboard.
+   "Begin opnieuw" → `restart()` keeps teams and players,
    resets scores, and goes back to setup.
 
 Turn order: teams are shuffled once at setup and play in index order;
@@ -175,6 +190,10 @@ and unique.
 Sounds: `startTurn()` loads both sounds inside the "Start beurt" tap and
 plays `vine-boom` from the timer later. Keep the loading inside the tap:
 mobile browsers only allow audio that a user gesture started.
+
+Haptics: `useTurnHaptics()` (in `pages/game.vue`) vibrates at 5 seconds
+left and when the turn ends. Android only — iOS Safari has no
+`navigator.vibrate`, and nothing else depends on it.
 
 While a game is in progress and not finished, `useWakeLock()` holds a
 screen wake lock, so the phone doesn't dim or lock while it's handed
@@ -236,42 +255,94 @@ router matches both. The manifest's `start_url` is the welcome page.
 
 ## Style
 
+- **Layout.** Every screen is a `Screen.vue`: full height (`h-dvh`),
+  content that scrolls on its own, and an `#action` slot pinned to the
+  bottom for the screen's one main button (thumb reach, clear of the
+  iPhone home indicator via `env(safe-area-inset-bottom)`;
+  `viewport-fit=cover` in `index.html` makes those insets available).
+  Content is capped at `max-w-md` and centred, so desktop shows a phone
+  column. No floating cards on a big background any more.
+- **The page itself never scrolls.** `html`/`body` are `overflow:
+  hidden` with `overscroll-behavior: none` (`main.css`); only a screen's
+  `<main>` scrolls. Before that, anything one pixel taller than the
+  viewport let the whole page move and showed white below the screen —
+  a border on a screen's wrapper (it adds to the `h-dvh` child), or an
+  `sr-only` input positioned against the page. So: no borders or margins
+  on screen wrappers (use a `fixed` element, like the team stripe in
+  `ActiveTurn.vue`), and `<main>` is `relative` to contain absolute
+  children. The turn and scoring screens use `<Screen :scrollable="false">`:
+  they never scroll, and the word cards (`min-h-0 flex-1`, two-line
+  clamp, font size tied to `dvh`) shrink to fit — down to an iPhone SE
+  (375×667).
+- **Main buttons** are `ActionButton.vue` (56px tall, full width). It has
+  no colours of its own — pass them as classes (`class="bg-emerald-700
+  text-white"`, or `bg-white` + the team's text colour on a coloured
+  screen), because two Tailwind classes for the same property can't
+  reliably override each other.
+- **Team colours.** `TEAM_COLOURS` (`models/Team.ts`) is the palette;
+  `TEAM_STYLES` (`utils/teamColours.ts`) holds every class and the
+  confetti hex values per colour, written out in full — Tailwind only
+  generates classes it finds spelled out, so never build one with a
+  template string (`bg-${colour}-700`). Screen backgrounds are the -700
+  shades, all ≥ 4.5:1 against white text. On a coloured screen the focus
+  outline turns white (`[&_:focus-visible]:outline-white` on the
+  screen's root).
+- **Screens by colour.** Welcome: emerald. Setup: the original
+  green→blue gradient with white team cards (colour stripe on the left).
+  Handoff and winner: the team's colour. Turn and scoring: light grey
+  with white word cards, so the words are the loudest thing.
+- **Type.** System font, no web font. Words are `text-2xl` bold, the
+  handoff name `text-5xl` extra-bold. Get emphasis from size and weight.
 - Tailwind v4 through `@tailwindcss/vite` (`vite.config.ts`);
   `assets/css/main.css` imports it, is imported by `main.ts`, and holds
-  the only global CSS. No `tailwind.config.js` — v4 is configured in CSS. Utility
-  classes directly in the markup; scoped `<style>` only where Tailwind
-  doesn't fit (the SVG timer in `ActiveTurn.vue`).
-- `main.css` restores two v3 defaults the components rely on (grey
-  `border` colour, `cursor: pointer` on buttons) and sets the one focus
-  style for every control: a 2px `emerald-700` outline on
-  `:focus-visible`.
+  the only global CSS: the animations (`@theme`), the screen and
+  leaderboard transitions, two v3 defaults the components rely on (grey
+  `border` colour, `cursor: pointer` on buttons), the focus outline, and
+  no tap highlight / double-tap zoom. No `tailwind.config.js` — v4 is
+  configured in CSS. Scoped `<style>` only where Tailwind doesn't fit
+  (the SVG timer in `ActiveTurn.vue`).
 - v4 names: `bg-linear-to-*` (not `bg-gradient-to-*`), `rounded-sm` is
-  v3's `rounded`, `shadow-xs` is v3's `shadow-sm`. v4's palette is OKLCH,
-  so colours are a touch more vivid than under v3.
-- The look: full-height green→blue gradient background
-  (`bg-linear-to-tr from-green-100 to-blue-200`), content in a white
-  rounded card with `shadow-2xl`. Primary buttons share one long class
-  string (emerald gradient) copied across components; secondary buttons
-  are bordered grey. Reuse those exact strings for consistency.
+  v3's `rounded`, `shadow-xs` is v3's `shadow-sm`, and `!` goes at the
+  end (`text-8xl!`, used to override the Material Icons font size).
 - Icons: Material Icons from Google Fonts (a `<link>` in
   `index.html`), used as ligatures
-  (`<span class="material-icons">close</span>`).
+  (`<span class="material-icons">close</span>`), always `aria-hidden`.
+
+### Animations
+
+All in CSS except the confetti. Each one is used as `motion-safe:…` (or
+lives in a `prefers-reduced-motion: no-preference` block), so with
+reduced motion the change is simply instant.
+
+| What | Where | How |
+|---|---|---|
+| Screen changes | `pages/game.vue`, `Playing.vue` | `<Transition name="screen" mode="out-in">`, 120 ms slide + fade each way. Every screen needs a single root element and a `key`. |
+| Words dealt in | `ActiveTurn.vue` | `animate-deal-in` with a 50 ms `animation-delay` per card — 250 ms in total, so it never costs reading time. |
+| Timer urgency | `ActiveTurn.vue` | Ring colour by `urgency` (green → amber ≤ 10 s → red ≤ 5 s), `animate-urgent` pulse when red. |
+| Time's up | `PostTurn.vue` | A fixed red overlay with `animate-flash` (fades from 60% to 0). |
+| Word tick | `PostTurn.vue` | `animate-pop` on a tile when it becomes selected. |
+| Score | `Leaderboard.vue` | Shows the scores from *before* `last_turn` for 400 ms, then the new ones: the bar grows (`transition-[width]`), rows slide into the new order (`<TransitionGroup name="leaderboard">`), and a `+N` badge pops (`animate-score-pop`). |
+| Winner | `PostGame.vue`, `Confetti.vue` | Canvas confetti in the winner's colours, the trophy and title with `animate-bounce-in`. Also on the welcome screen's hourglass and the handoff name. |
 
 ## Accessibility
 
-- Every input has a `<label for>`: the "Team N" heading for team names,
-  a `sr-only` "Speler naam" for players.
-- `RemoveButton` is a real button with a `label` prop ("Verwijder team" /
-  "Verwijder speler"); padding with a matching negative margin gives its
-  18px icon a bigger tap area without moving it.
+- Every input has a `<label for>`: the "Team N" label above each team
+  name, a `sr-only` "Speler naam" for players. The target score is a
+  real radio group in a `<fieldset>` with a `<legend>`.
+- `RemoveButton` is a real 40px round button with a `label` prop
+  ("Verwijder team" / "Verwijder speler"); its parent positions it.
 - The timer ring is a button labelled "Beëindig beurt"; the SVG inside
   is `aria-hidden`. A `sr-only` `aria-live="polite"` line announces
   "Nog 10 seconden" and "Nog 5 seconden" — deliberately not every second,
   which would talk over the players.
-- The word tiles in `PostTurn.vue` are toggle buttons with
-  `aria-pressed`, and a selected tile shows a check icon as well as the
-  green colour.
-- Every control has a visible `:focus-visible` outline (`main.css`).
+- Word cards carry a `sr-only` category label ("Plaats: Düsseldorf").
+  In `PostTurn.vue` they're toggle buttons with `aria-pressed`, and a
+  selected card shows a check icon as well as the green colour.
+- The leaderboard has a `sr-only` "Tussenstand" heading. Team colours are
+  never the only signal: every coloured dot or stripe sits next to the
+  team's name.
+- Every control has a visible `:focus-visible` outline (`main.css`),
+  white on coloured screens.
 - `<html lang="nl">`.
 
 ## Known issues
@@ -327,7 +398,9 @@ Before calling a change done:
     a sound recorder, and `newGame()`/`playTurn()`.
   When you fix a bug in the models, add the test that would have caught
   it.
-- Play a full game in the browser at phone width (~390px), with
+- Play a full game in the browser at phone width (~390px) — if the
+  browser window won't shrink that far, load the app in a 390×844
+  `<iframe>` on a page of the same origin — with
   `npm run dev`, or `npm run build && npm run preview` for the built
   site (then open `/thirty-seconds-clone/`):
   - add and remove a team and a player (remove buttons only above 2);
@@ -337,8 +410,18 @@ Before calling a change done:
     that the next team and player are right;
   - reload between turns → "Ga verder met bestaand spel" resumes with
     the same scores and turn;
-  - play to the target score (pick 10) → winner screen → "Begin opnieuw"
-    keeps the teams and resets the scores;
+  - play to the target score (pick 10) → winner screen in the winner's
+    colour with confetti → "Begin opnieuw" keeps the teams and resets
+    the scores;
+  - no screen lets the *page* scroll: in the frame, check
+    `document.documentElement.scrollHeight === clientHeight` on every
+    screen, and that the turn and scoring screens' `<main>` doesn't
+    scroll at 375×667 either;
+  - the animations: words deal in, the ring turns amber at 10 and red at
+    5, the red flash at time's up, the `+N` and row reorder on the next
+    handoff screen. Then turn on reduced motion (DevTools → Rendering →
+    `prefers-reduced-motion: reduce`) and check everything still works,
+    just without movement, and the confetti doesn't appear;
   - the screen stays on during a game: wrap `navigator.wakeLock.request`
     in the console to log calls, or watch the phone not dim.
 - If you touched routes or `vite.config.ts`: build, then serve `dist/`

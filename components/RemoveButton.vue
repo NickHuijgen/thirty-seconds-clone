@@ -1,23 +1,20 @@
 <template>
-  <div
+  <!-- Position it from the parent, e.g. class="absolute right-2 top-2" -->
+  <button
       v-if="canRemove"
-      class="absolute right-2 top-2"
+      type="button"
+      class="flex size-10 items-center justify-center rounded-full text-red-500 hover:text-red-600"
+      :title="label"
+      :aria-label="label"
+      @click="handleClick()"
   >
-    <button
-        type="button"
-        class="flex p-2 -m-2 text-red-500 hover:text-red-600 cursor-pointer"
-        :title="label"
-        :aria-label="label"
-        @click="handleClick()"
+    <span
+        class="material-icons text-xl!"
+        aria-hidden="true"
     >
-      <span
-          class="material-icons text-lg"
-          aria-hidden="true"
-      >
-        close
-      </span>
-    </button>
-  </div>
+      close
+    </span>
+  </button>
 </template>
 
 <script setup lang="ts">
@@ -43,7 +40,3 @@ function handleClick() {
   emit('click');
 }
 </script>
-
-<style scoped>
-
-</style>

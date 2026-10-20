@@ -1,56 +1,59 @@
 <template>
-  <label
-      :for="inputId"
-      class="block mb-1 font-medium"
+  <div
+      class="relative rounded-2xl border-l-8 bg-white p-4 shadow-sm"
+      :class="TEAM_STYLES[team.colour].border"
   >
-    Team {{ index + 1 }}
-  </label>
-
-  <div class="relative">
     <RemoveButton
+        class="absolute top-1 right-1"
         :can-remove="canRemove"
         label="Verwijder team"
         @click="removeTeam()"
     />
 
-    <div>
-      <input
-          v-model="team.name"
-          type="text"
-          name="team_name"
-          :id="inputId"
-          placeholder="Team naam"
-          class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
-      >
-    </div>
+    <label
+        :for="inputId"
+        class="mb-1 block text-sm font-semibold"
+        :class="TEAM_STYLES[team.colour].text"
+    >
+      Team {{ index + 1 }}
+    </label>
+    <input
+        v-model="team.name"
+        type="text"
+        name="team_name"
+        :id="inputId"
+        placeholder="Team naam"
+        class="h-12 w-full rounded-xl border-2 px-3 text-lg font-semibold"
+    >
 
-    <div class="pt-4">
-      <p class="font-medium">
-        Spelers
-      </p>
+    <p class="mt-4 mb-2 text-sm font-semibold text-gray-600">
+      Spelers
+    </p>
 
-      <div
+    <div class="space-y-2">
+      <PlayerSetup
           v-for="(player, index) in team.players"
           :key="index"
-          class="py-2 mb-1"
-      >
-        <PlayerSetup
-            :player="player"
-            @remove-player="removePlayer(team, player)"
-            :can-remove="team.players.length > 2"
-        />
-      </div>
-
-      <div class="pt-2">
-        <button
-            type="button"
-            class="px-2 py-0.5 border-2 border-gray-200 shadow-xs rounded-md text-gray-700"
-            @click="addPlayer(team)"
-        >
-          + Voeg speler toe
-        </button>
-      </div>
+          :player="player"
+          @remove-player="removePlayer(team, player)"
+          :can-remove="team.players.length > 2"
+      />
     </div>
+
+    <button
+        type="button"
+        class="mt-3 flex h-11 items-center gap-1 rounded-xl px-3 font-semibold"
+        :class="[TEAM_STYLES[team.colour].soft, TEAM_STYLES[team.colour].text]"
+        @click="addPlayer(team)"
+    >
+      <span
+          class="material-icons text-xl!"
+          aria-hidden="true"
+      >
+        person_add
+      </span>
+      Voeg speler toe
+    </button>
   </div>
 </template>
 
@@ -61,6 +64,7 @@ import PlayerSetup from "~/components/PlayerSetup.vue";
 import Player from "~/models/Player";
 import RemoveButton from "~/components/RemoveButton.vue";
 import Game from "~/models/Game";
+import { TEAM_STYLES } from "~/utils/teamColours";
 
 const emit = defineEmits(['remove-team']);
 
@@ -100,7 +104,3 @@ function removePlayer(team: Team, player: Player) {
   team.removePlayer(player);
 }
 </script>
-
-<style scoped>
-
-</style>
