@@ -1,9 +1,13 @@
 <template>
   <div class="bg-gray-50 text-gray-900">
-    <!-- Time's up: one red flash over the whole screen -->
+    <!-- Time's up: one red flash over the whole screen. Removed as soon as it has faded:
+         iOS Safari tints its toolbar area with the colour of a fixed element at the screen's edge,
+         even a transparent one, so leaving it in place keeps the bottom of the screen red. -->
     <div
-        class="pointer-events-none fixed inset-0 z-40 bg-red-500 opacity-0 motion-safe:animate-flash"
+        v-if="flashing"
+        class="pointer-events-none fixed inset-0 z-40 bg-red-500 opacity-0 animate-flash"
         aria-hidden="true"
+        @animationend="flashing = false"
     />
 
     <Screen :scrollable="false">
@@ -79,6 +83,9 @@ defineProps({
 });
 
 const selectedWords = ref<string[]>([]);
+
+// With reduced motion there's no flash at all (it would never end, so never be removed)
+const flashing = ref(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 // active_words holds one word per category, in CATEGORIES order
 function categoryOf(index: number) {

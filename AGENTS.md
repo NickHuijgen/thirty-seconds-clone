@@ -319,7 +319,7 @@ reduced motion the change is simply instant.
 | Screen changes | `pages/game.vue`, `Playing.vue` | `<Transition name="screen" mode="out-in">`, 120 ms slide + fade each way. Every screen needs a single root element and a `key`. |
 | Words dealt in | `ActiveTurn.vue` | `animate-deal-in` with a 50 ms `animation-delay` per card — 250 ms in total, so it never costs reading time. |
 | Timer urgency | `ActiveTurn.vue` | Ring colour by `urgency` (green → amber ≤ 10 s → red ≤ 5 s), `animate-urgent` pulse when red. |
-| Time's up | `PostTurn.vue` | A fixed red overlay with `animate-flash` (fades from 60% to 0). |
+| Time's up | `PostTurn.vue` | A fixed red overlay with `animate-flash` (fades from 60% to 0), **removed on `animationend`** and never rendered with reduced motion. iOS Safari tints its toolbar area with the background colour of any fixed element at the screen's edge — even a fully transparent one — so a faded-out overlay left in place kept the bottom of the screen red. Same rule for any future full-screen or edge-touching fixed element with a background: remove it when it's done. |
 | Word tick | `PostTurn.vue` | `animate-pop` on a tile when it becomes selected. |
 | Score | `Leaderboard.vue` | Shows the scores from *before* `last_turn` for 400 ms, then the new ones: the bar grows (`transition-[width]`), rows slide into the new order (`<TransitionGroup name="leaderboard">`), and a `+N` badge pops (`animate-score-pop`). |
 | Winner | `PostGame.vue`, `Confetti.vue` | Canvas confetti in the winner's colours, the trophy and title with `animate-bounce-in`. Also on the welcome screen's hourglass and the handoff name. |
