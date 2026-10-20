@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import Game from "~/models/Game";
 
 const props = defineProps({

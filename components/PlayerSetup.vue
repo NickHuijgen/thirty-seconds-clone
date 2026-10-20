@@ -26,7 +26,9 @@
 </template>
 
 <script setup lang="ts">
+import { useId } from "vue";
 import Player from "~/models/Player";
+import RemoveButton from "~/components/RemoveButton.vue";
 
 const emit = defineEmits(['remove-player']);
 

@@ -1,6 +1,6 @@
 ## Development
 
-Start the dev server (http://localhost:3000/thirty-seconds-clone/ — note
+Start the dev server (http://localhost:5173/thirty-seconds-clone/ — note
 the base URL, see Routes):
 
 ```
@@ -12,13 +12,11 @@ when you're done.
 
 ## Documentation
 
-Full documentation: https://nuxt.com/docs
+Consult these before working on related tasks:
 
-Consult these guides before working on related tasks:
-
-- [Directory structure](https://nuxt.com/docs/guide/directory-structure) — this project uses the *root* layout, not `app/` (see Invariants)
-- [Pages and routing](https://nuxt.com/docs/guide/directory-structure/pages)
-- [Static hosting / `nuxt generate`](https://nuxt.com/docs/getting-started/deployment#static-hosting)
+- [Vue](https://vuejs.org/guide/) — `<script setup>` and the reactivity API
+- [Vue Router](https://router.vuejs.org/guide/)
+- [Vite](https://vite.dev/guide/) — config, `base`, static assets and the `public/` directory
 - [Tailwind CSS v4](https://tailwindcss.com/docs)
 - [Node test runner](https://nodejs.org/api/test.html)
 
@@ -31,16 +29,21 @@ wildcard, film/series/song and brand) and has 30 seconds to describe them
 to their teammates; afterwards they tick the words that were guessed, and
 each guessed word is one point. First team to the target score wins.
 
-Nuxt 4 SPA (`ssr: false`), Vue 3 `<script setup>`, Tailwind CSS v4, no
-backend. `npm run generate` produces a static site that GitHub Pages
-serves; GitHub Actions type-checks, tests, builds and deploys it on every
-push to `main` — pushing to `main` *is* deploying.
+A Vue 3 single-page app (`<script setup>`, Vue Router) built with Vite,
+styled with Tailwind CSS v4, no backend. `npm run build` produces a
+static site in `dist/` that GitHub Pages serves; GitHub Actions
+type-checks, tests, builds and deploys it on every push to `main` —
+pushing to `main` *is* deploying.
 
-Started in October 2024 from the Nuxt 3 starter; upgraded to Nuxt 4 in
-January 2026 without moving to the Nuxt 4 `app/` directory layout. In
-October 2026 it moved to Tailwind 4, saved games moved from cookies to
-`localStorage`, and it got tests, a web app manifest and a screen wake
-lock.
+Started in October 2024 from the Nuxt 3 starter. In October 2026 it
+moved to Tailwind 4, saved games moved from cookies to `localStorage`,
+it got tests, a web app manifest and a screen wake lock — and Nuxt was
+replaced by plain Vue + Vite. Nuxt ran here as a client-only SPA
+(`ssr: false`) and only `<NuxtPage>`/`<NuxtLink>` were used, while its
+server layer brought ~470 extra packages and every remaining `npm audit`
+finding. Don't bring it back for convenience; if the game ever needs a
+server (online play, shared word lists), that's a separate backend
+decision.
 
 ## Priorities
 
@@ -79,11 +82,11 @@ Places that have to say the same thing or it silently breaks. Marked
 | **[test]** Any field on `Game`, `Team` or `Player` that must survive a reload | `save()` / `loadSaved()` in `models/Game.ts` | The save lists every field by hand and loading rebuilds `Team`/`Player` objects field by field. A new field is silently dropped on reload (it gets its constructor default). `test/game.test.ts` pins the saved keys and the round trip, so a new field means updating both methods *and* that test. |
 | **[test]** A word list in `public/*.json` | `test/words.test.ts` | Format, no duplicates within or across lists (case- and accent-insensitive), at least 100 words each. Use the `edit-words` skill. |
 | The set of categories | `CATEGORIES` and `Game.emptyWordLists()` in `models/Game.ts`, `utils/words.ts`, and a `public/<category>.json` | Everything else loops over `CATEGORIES`. The `WordLists` type makes a missing key in `utils/words.ts` or `emptyWordLists()` a type error (`npm run check`). |
-| The `nuxt` version in `package.json` | `vue-router` (and `vue`) in `package.json` | Both are listed as direct dependencies, so their ranges must stay compatible with what Nuxt itself requires (`npm view nuxt@<version> dependencies`). Nuxt 4.6 needs `vue-router` ^5, for example. |
-| `baseURL` in `nuxt.config.ts` | The GitHub repo name; the relative `href`s in `app.head.link`; `start_url`/`scope` in `public/manifest.webmanifest` | GitHub Pages serves the site under `/<repo-name>/`. The head links and the manifest use relative paths on purpose, so they resolve under whatever `baseURL` is — don't make them absolute. |
-| `theme_color` in `public/manifest.webmanifest` | The `theme-color` meta in `nuxt.config.ts` and the background in `design/app-icon.svg` | The same emerald (`#047857`, Tailwind `emerald-700`), stated three times. |
+| `BASE` in `vite.config.ts` | The GitHub repo name | GitHub Pages serves the site under `/<repo-name>/`. Everything else follows `BASE`: Vite prefixes the absolute paths in `index.html` (`/favicon.svg` → `/thirty-seconds-clone/favicon.svg`) and the router uses `import.meta.env.BASE_URL`. Keep `index.html` paths **absolute** — a relative `favicon.svg` would break on `/game/`. The manifest is the exception: its `start_url`, `scope` and icons are relative to the manifest file itself, so they stay relative. |
+| A route in `main.ts` | `ROUTES` in `vite.config.ts` | GitHub Pages has no SPA fallback, so the build copies `index.html` to `<route>/index.html` for every route in `ROUTES` (and to `404.html`). A route missing there still works when navigated to in the app, but 404s on reload. |
+| `theme_color` in `public/manifest.webmanifest` | The `theme-color` meta in `index.html` and the background in `design/app-icon.svg` | The same emerald (`#047857`, Tailwind `emerald-700`), stated three times. |
 | The app icon | `public/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` | All three are rendered from `design/app-icon.svg`; the command is in a comment at the top of that file. The hourglass stays inside the middle 50%, so Android's maskable crop never cuts it. |
-| Adding an `app/` directory | Everything | Nuxt 4 uses `app/` as `srcDir` when it exists and falls back to the project root when it doesn't. Creating `app/` (even an empty one for a single file) moves the source root and makes `pages/`, `components/` and `app.vue` disappear. Migrating to `app/` is a deliberate, all-at-once move. |
+| A component used in a template | Its `import` in that file's `<script setup>` | Nothing is auto-imported any more — not components, not `ref`/`computed`/`watch`. `strictTemplates` (`tsconfig.json`) makes an unimported component a type error, so `npm run check` catches it; without that it would just render nothing. |
 | Which component shows when (`pages/game.vue`, `Playing.vue`) | The flags on `Game` (see Game flow) | Screens are picked purely from `is_in_progress`, `is_finished`, `is_applying_score` and `turn_timer === 0`. A new state needs a flag *and* its place in that `v-if` chain. |
 
 ## Constraints
@@ -113,9 +116,14 @@ Places that have to say the same thing or it silently breaks. Marked
 - Browser-only behaviour that isn't a game rule goes in a composable
   (`composables/useWakeLock.ts`), not in the models.
 - UI copy is Dutch and lives directly in the templates. No i18n layer.
-- Component imports are explicit (`import X from "~/components/X.vue"`)
-  even though Nuxt auto-imports them; follow whichever the file you're in
-  already does.
+- Every import is explicit: components (`import X from
+  "~/components/X.vue"`) and Vue APIs (`import { computed, ref } from
+  "vue"`). `~` is an alias for the project root (`vite.config.ts` and
+  `tsconfig.json` both define it — keep them in step).
+- Project layout is flat, without `src/`: `index.html` and `main.ts`
+  (router and mount) at the root, then `app.vue`, `pages/`,
+  `components/`, `composables/`, `models/`, `utils/`, `assets/`,
+  `public/`.
 - Code style: 4-space indent in `.ts`, 2-space in `.vue`; `snake_case`
   for model fields (`max_score`, `active_team_index`), `camelCase` for
   methods. There is no linter or formatter configured.
@@ -217,16 +225,20 @@ cookies expired within 4 hours of the switch.
 - `/game` — `pages/game.vue`, the whole game (all screens are components
   switched by state, not routes).
 
-Everything is under `baseURL: '/thirty-seconds-clone/'` (GitHub Pages
-project site). `nuxt generate` writes `index.html`, `game/index.html`,
-`200.html` and `404.html`; with `ssr: false` these are empty SPA shells.
-The manifest's `start_url` is the welcome page.
+- Anything else redirects to `/` (catch-all route in `main.ts`).
+
+Routes are defined in `main.ts` (`createWebHistory`), all under
+`base: '/thirty-seconds-clone/'` (GitHub Pages project site). The build
+writes `index.html`, plus identical copies at `game/index.html` and
+`404.html` (the `spaShells` plugin in `vite.config.ts`), so a reload on
+any URL loads the app. GitHub Pages redirects `/game` to `/game/`; the
+router matches both. The manifest's `start_url` is the welcome page.
 
 ## Style
 
-- Tailwind v4 through `@tailwindcss/vite` (`nuxt.config.ts` →
-  `vite.plugins`); `assets/css/main.css` imports it and holds the only
-  global CSS. No `tailwind.config.js` — v4 is configured in CSS. Utility
+- Tailwind v4 through `@tailwindcss/vite` (`vite.config.ts`);
+  `assets/css/main.css` imports it, is imported by `main.ts`, and holds
+  the only global CSS. No `tailwind.config.js` — v4 is configured in CSS. Utility
   classes directly in the markup; scoped `<style>` only where Tailwind
   doesn't fit (the SVG timer in `ActiveTurn.vue`).
 - `main.css` restores two v3 defaults the components rely on (grey
@@ -242,7 +254,7 @@ The manifest's `start_url` is the welcome page.
   string (emerald gradient) copied across components; secondary buttons
   are bordered grey. Reuse those exact strings for consistency.
 - Icons: Material Icons from Google Fonts (a `<link>` in
-  `nuxt.config.ts`), used as ligatures
+  `index.html`), used as ligatures
   (`<span class="material-icons">close</span>`).
 
 ## Accessibility
@@ -266,11 +278,6 @@ The manifest's `start_url` is the welcome page.
 
 Not fixed yet. Ask before fixing as a side effect of something else.
 
-- **Remaining `npm audit` findings** (11 high as of October 2026, all in
-  Nuxt's own build/dev tooling, none in the shipped bundle): `nitropack`
-  → `globby`/`fast-glob`/`micromatch`/`braces`, and `listhen` →
-  `node-forge` (dev server). They wait on an upstream Nuxt release.
-  `npm audit fix --force` would *downgrade* Nuxt; don't run it.
 - `public/robots.txt` is empty (allows everything — fine, but it's a
   placeholder).
 - No service worker, so the game needs a connection to load. It's a
@@ -282,24 +289,25 @@ Not fixed yet. Ask before fixing as a side effect of something else.
 | Piece | Where | Setting |
 |---|---|---|
 | Repo | GitHub `NickHuijgen/thirty-seconds-clone`, public | Default branch `main`. |
-| Build & deploy | `.github/workflows/deploy.yml` | On push to `main` (and manual dispatch): Node 22, `npm ci`, `npm run check`, `npm test`, `npm run generate`, upload `.output/public`, deploy with `actions/deploy-pages`. A failing type check or test stops the deploy. |
+| Build & deploy | `.github/workflows/deploy.yml` | On push to `main` (and manual dispatch): Node 22, `npm ci`, `npm run check`, `npm test`, `npm run build`, upload `dist`, deploy with `actions/deploy-pages`. A failing type check or test stops the deploy. |
 | Hosting | GitHub Pages (build type "workflow") | https://nickhuijgen.github.io/thirty-seconds-clone/ — no custom domain. |
 
-The `dist` symlink in the project root points at `.output/public`; it's
-gitignored and only there for convenience.
+`dist/` is the build output and is gitignored. `npm audit` was clean
+after the move to Vite (October 2026); keep it that way.
 
 ## Don't
 
 - Don't add dependencies without asking.
 - Don't scaffold features I didn't ask for.
 - Don't push to `main` without being asked — it deploys to production.
-- Don't create an `app/` directory (see Invariants).
+- Don't reintroduce Nuxt or another meta-framework without asking (see
+  the intro).
 
 ## Verification
 
 Before calling a change done:
 
-- `npm run verify` — `check`, then `test`, then `generate`; the same
+- `npm run verify` — `check`, then `test`, then `build`; the same
   steps CI runs before deploying. Expect 0 type errors and every test
   passing.
 - `npm run check` — `vue-tsc --noEmit` over the app *and* the tests.
@@ -320,8 +328,8 @@ Before calling a change done:
   When you fix a bug in the models, add the test that would have caught
   it.
 - Play a full game in the browser at phone width (~390px), with
-  `npm run dev` or `npx serve .output/public` (then open
-  `/thirty-seconds-clone/`):
+  `npm run dev`, or `npm run build && npm run preview` for the built
+  site (then open `/thirty-seconds-clone/`):
   - add and remove a team and a player (remove buttons only above 2);
   - start, play a turn to the end of the timer, and one ended early by
     tapping the ring; both sounds play;
@@ -333,6 +341,11 @@ Before calling a change done:
     keeps the teams and resets the scores;
   - the screen stays on during a game: wrap `navigator.wakeLock.request`
     in the console to log calls, or watch the phone not dim.
-- If you touched `nuxt.config.ts` head links, the manifest or the icons:
+- If you touched routes or `vite.config.ts`: build, then serve `dist/`
+  *without* an SPA fallback — `vite preview` has one, GitHub Pages
+  doesn't — e.g. symlink `dist` as `thirty-seconds-clone` inside an empty
+  folder and run `python3 -m http.server` there. Reload on `/game/` must
+  load the app.
+- If you touched `index.html` head links, the manifest or the icons:
   open DevTools → Application → Manifest on the built site and check it
   parses, every icon loads, and Chrome offers to install it.

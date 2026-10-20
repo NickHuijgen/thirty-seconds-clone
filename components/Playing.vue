@@ -17,6 +17,9 @@
 
 <script setup lang="ts">
 import Game from "~/models/Game";
+import ActiveTurn from "~/components/ActiveTurn.vue";
+import PostTurn from "~/components/PostTurn.vue";
+import PreTurn from "~/components/PreTurn.vue";
 
 defineProps({
   game: {

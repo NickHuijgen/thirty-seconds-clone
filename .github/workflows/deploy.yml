@@ -34,15 +34,15 @@ jobs:
         run: npm run check
       - name: Test
         run: npm test
-      - name: Generate static site
-        run: npm run generate
+      - name: Build static site
+        run: npm run build
         env:
           NODE_ENV: production
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .output/public
+          path: dist
 
   deploy:
     environment:

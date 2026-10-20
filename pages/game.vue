@@ -23,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import Game from "~/models/Game";
 import Team from "~/models/Team";
 import SetupForm from "~/components/GameSetup.vue";

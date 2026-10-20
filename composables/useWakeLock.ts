@@ -1,4 +1,4 @@
-import type { Ref } from 'vue';
+import { onMounted, onUnmounted, watch, type Ref } from 'vue';
 
 // Keeps the screen on while `active` is true, so the phone doesn't lock while it's passed around.
 // The browser drops the lock whenever the page is hidden, so it's requested again when the page comes back.

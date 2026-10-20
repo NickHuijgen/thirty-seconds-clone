@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import Game from "~/models/Game";
+import Leaderboard from "~/components/Leaderboard.vue";
 
 const props = defineProps({
   game: {

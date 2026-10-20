@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { useId } from "vue";
 import Team from "~/models/Team";
 import PlayerSetup from "~/components/PlayerSetup.vue";
 import Player from "~/models/Player";

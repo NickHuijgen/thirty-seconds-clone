@@ -10,12 +10,12 @@
       </p>
 
       <div class="flex justify-center items-center p-4">
-        <NuxtLink
+        <RouterLink
             to="/game"
             class="px-8 py-3 font-semibold rounded-sm bg-linear-to-br text-white shadow-2xl hover:bg-linear-to-tr from-emerald-600 to-emerald-800"
         >
           Begin spel
-        </NuxtLink>
+        </RouterLink>
       </div>
     </div>
   </div>

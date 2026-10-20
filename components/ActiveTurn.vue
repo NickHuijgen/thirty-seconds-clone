@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import Game, { TURN_SECONDS } from "~/models/Game";
 
 const props = defineProps({

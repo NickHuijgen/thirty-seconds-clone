@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import Game from "~/models/Game";
 
 const props = defineProps({

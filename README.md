@@ -28,8 +28,8 @@ can be added to the home screen as an app.
 
 ## Setup
 
-Built with [Nuxt](https://nuxt.com) 4 as a client-only SPA (`ssr: false`),
-Vue 3 and Tailwind CSS v4, made for phones. No backend: the word lists are
+Built with [Vue](https://vuejs.org) 3, [Vite](https://vite.dev) and Tailwind CSS v4, made
+for phones. No backend: the word lists are
 JSON files in `public/` bundled into the app, and a game is saved in
 `localStorage`.
 
@@ -43,10 +43,9 @@ All commands run from the project root:
 | Command | Action |
 | :--- | :--- |
 | `npm install` | Install dependencies |
-| `npm run dev` | Start the dev server at `localhost:3000/thirty-seconds-clone/` |
-| `npm run generate` | Build the static site to `./.output/public/` — what CI deploys |
-| `npm run build` | Nuxt production build (not what's deployed) |
+| `npm run dev` | Start the dev server at `localhost:5173/thirty-seconds-clone/` |
+| `npm run build` | Build the static site to `./dist/` — what CI deploys |
 | `npm run preview` | Preview the build locally |
 | `npm run check` | Type-check the app and tests (`vue-tsc`) |
 | `npm test` | Run the game-logic and word-list tests (`node --test`) |
-| `npm run verify` | `check`, `test`, then `generate` — run this before pushing |
+| `npm run verify` | `check`, `test`, then `build` — run this before pushing |
