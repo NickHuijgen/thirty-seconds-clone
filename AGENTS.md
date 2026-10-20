@@ -40,11 +40,17 @@ January 2026 without moving to the Nuxt 4 `app/` directory layout.
 
 ## Priorities
 
-**Mobile and pass-the-phone usability come first.** The game is played on
-one phone handed from player to player, often in a noisy room. When a
-change trades that off against anything else, it wins.
+**This project is for mobile users.** The game is played on one phone
+handed from player to player, often in a noisy room. Desktop browsers are
+only ever used for testing — there is no desktop audience to design for.
+When a change trades mobile usability off against anything else, mobile
+wins; never make a choice that only looks or works right on desktop.
 
-- Design and check at a real phone width (360–430px) before desktop.
+- Design and check at a real phone width (360–430px). Desktop only needs
+  to not be broken; don't spend effort on desktop-specific layouts,
+  hover-only affordances or keyboard shortcuts as a primary interaction.
+- Touch first: every control must work by tap, and `hover:` styles are
+  decoration only, never the only way to discover something.
 - Large tap targets and readable words at arm's length — the active
   player is glancing at the screen while talking.
 - Nothing should be accidentally triggerable mid-turn. Tapping the timer
@@ -63,9 +69,10 @@ these fail a build, and there are no tests yet.
 | If you change… | …also check | Why |
 |---|---|---|
 | Any field on `Game`, `Team` or `Player` (`models/`) | `saveToCookies()` / `loadFromCookies()` in `models/Game.ts` | Loading rebuilds `Team`/`Player` objects field by field from the cookie JSON. A new field is silently dropped on reload (it gets its constructor default); a renamed one comes back `undefined`. |
-| A word list in `public/*.json` (making it longer) | The byte size of its cookie | Each `available_<category>` list is stored in its **own cookie**, and browsers drop a cookie whose name+value exceeds 4096 bytes — silently, so the game just stops resuming. `media.json` is already at ~3920 bytes, `people.json` ~3850. Check with the one-liner in Verification. Adding words means moving persistence to `localStorage` first (see Known issues). |
+| A word list in `public/*.json` (making it longer) | The byte size of its cookie | Each `available_<category>` list is stored in its **own cookie**, and browsers drop a cookie whose name+value exceeds 4096 bytes — silently, so the game just stops resuming. `media.json` is already at ~3810 bytes, `people.json` ~3760 (October 2026). Check with the one-liner in Verification. Adding words means moving persistence to `localStorage` first (see Known issues). |
 | The set of categories (`people`, `places`, `wildcards`, `media`, `brands`) | Every `available_*` field, `setUp()`, `setActiveWords()`, `setUsed()`, `saveToCookies()`, `loadFromCookies()` and `clearCookies()` | The five categories are written out by hand in all of these; there is no list to loop over. Miss one and that category either repeats words or never persists. |
 | The turn length (`30` in `startTurn()`) | The `/ 30` in `ActiveTurn.vue`'s `stroke-dasharray` | The timer ring computes its fill from the same literal. |
+| The `nuxt` version in `package.json` | `vue-router` (and `vue`) in `package.json` | Both are listed as direct dependencies, so their ranges must stay compatible with what Nuxt itself requires (`npm view nuxt@<version> dependencies`). Nuxt 4.6 needs `vue-router` ^5, for example. |
 | `baseURL` in `nuxt.config.ts` | The GitHub repo name, and the `href: 'favicon.svg'` (relative on purpose) | GitHub Pages serves the site under `/<repo-name>/`. Assets and routes resolve against `baseURL`. |
 | Adding an `app/` directory | Everything | Nuxt 4 uses `app/` as `srcDir` when it exists and falls back to the project root when it doesn't. Creating `app/` (even an empty one for a single file) moves the source root and makes `pages/`, `components/` and `app.vue` disappear. Migrating to `app/` is a deliberate, all-at-once move. |
 | Which component shows when (`pages/game.vue`, `Playing.vue`) | The flags on `Game` (see Game flow) | Screens are picked purely from `is_in_progress`, `is_finished`, `is_applying_score` and `turn_timer === 0`. A new state needs a flag *and* its place in that `v-if` chain. |
@@ -95,6 +102,12 @@ these fail a build, and there are no tests yet.
   methods. There is no linter or formatter configured.
 - `// @ts-ignore` is used above array-index accesses that TypeScript
   flags as possibly `undefined`. Prefer a real guard in new code.
+- Element ids in components that render more than once (team and player
+  inputs) come from `useId()`, never a literal — a literal id repeats for
+  every team/player.
+- Clickable things are `<button type="button">`, not a `<div>`/`<span>`
+  with `@click`. Toggles carry `aria-pressed`; icon-only buttons an
+  `aria-label` (the icon itself `aria-hidden`).
 
 ## Game flow
 
@@ -137,11 +150,13 @@ They're imported into the bundle by `models/Game.ts` (and, because they're
 in `public/`, also served as files — that's incidental, nothing fetches
 them).
 
-- Each turn takes one random word per category. Used words are removed
-  from the `available_*` lists so they don't come back within a game.
-- Lists have a few exact duplicates (`places.json` has ~40, others a
-  handful) and three words appear in two categories (`Casablanca`,
-  `Halloween`, `Diesel`). When editing a list, dedupe it.
+- Each turn takes one random word per category, and `setActiveWords()`
+  removes them from the `available_*` lists straight away, so they don't
+  come back within a game — also not after a resume.
+- No word may appear twice in a list, or in two lists: either can put
+  the same word on screen twice. All lists were deduplicated in October
+  2026 (`Casablanca` stayed in places, `Halloween` in wildcards, `Diesel`
+  in brands). The check is in Verification.
 - Nothing handles a category running out: `getRandom()` on an empty list
   returns `undefined` and an empty card shows. At ~140 wildcards that's
   140 turns, so it's theoretical, but don't shrink lists far.
@@ -158,6 +173,8 @@ size row in Invariants.
 
 `canLoadFromCookies()` decides whether the "Ga verder" button shows.
 `clearCookies()` runs when a *new* game is set up (not on `restart()`).
+`winning_team` isn't stored; `loadFromCookies()` derives it from the
+scores, so resuming a finished game lands on the winner screen.
 
 ## Routes
 
@@ -185,41 +202,44 @@ project site). `nuxt generate` writes `index.html`, `game/index.html`,
 
 ## Accessibility
 
-Current state, not goals met — improve when touching these:
-- Team and player inputs have no `<label>`, only a placeholder, and every
-  one shares `id="team_name"` / `id="player_name"` (duplicate ids).
-- `RemoveButton` and the timer ring are clickable `<span>`/`<svg>`, not
-  `<button>`s: not focusable, no keyboard access. `RemoveButton`'s title
-  says "Verwijder team" even when it removes a player.
-- The word tiles in `PostTurn.vue` are clickable `<div>`s; selection is
-  shown by colour only (green background/border).
+- Every input has a `<label for>`: the "Team N" heading for team names,
+  a `sr-only` "Speler naam" for players.
+- `RemoveButton` is a real button with a `label` prop ("Verwijder team" /
+  "Verwijder speler"); padding with a matching negative margin gives its
+  18px icon a bigger tap area without moving it.
+- The timer ring is a button labelled "Beëindig beurt"; the SVG inside
+  is `aria-hidden`.
+- The word tiles in `PostTurn.vue` are toggle buttons with
+  `aria-pressed`.
+
+Still open:
+- Word-tile selection is shown by colour only (green background/border)
+  for sighted users; a check icon would fix it.
 - The countdown isn't announced to screen readers.
+- Buttons have no custom focus style (browser default only).
 
 ## Known issues
 
-Found while writing this file; not fixed yet. Ask before fixing as a
-side effect of something else.
+Not fixed yet. Ask before fixing as a side effect of something else.
 
 - **Cookie size ceiling** — see Invariants. Moving to `localStorage`
   (≈5 MB, one key) would remove it.
-- **Words can repeat after a resume.** `setUsed()` removes the *previous*
-  turn's words at the start of the next turn, but `finishTurn()` saves
-  before that, and `loadFromCookies()` resets `active_words`. So the
-  last turn's words are back in the pool after a reload.
-- **Resuming a finished game** shows "undefined heeft gewonnen":
-  `loadFromCookies()` restores `is_finished` but sets `winning_team` to
-  `null`.
-- `Leaderboard.vue` calls `game.teams.sort(...)` in the template, which
-  sorts the real array in place during render. Harmless today (lookups
-  use `index`), but it's a side effect in a render.
-- `game.start()` is never called; `setUp()` alone starts the game, so
-  the first player is index 0 of the first team.
-- Class typos that silently do nothing: `gris-cols-1` (`GameSetup.vue`),
-  `pointer:cursor` (`PostTurn.vue`, meant `cursor-pointer`).
-- `pages/game.vue` types the ref as `const game: Game = ref(...)`; it's
-  really `Ref<Game>`. Works at runtime, wrong for the type checker.
+- **Remaining `npm audit` findings** (15 as of October 2026, all in
+  build/dev tooling, none in the shipped bundle): Tailwind 3's file
+  watcher (`braces`, `micromatch`, `postcss-selector-parser`) — gone with
+  Tailwind 4 — and Nuxt's dev server (`listhen` → `node-forge`), which
+  waits on an upstream Nuxt release. `npm audit fix --force` would
+  *downgrade* Nuxt; don't run it.
+- **Tailwind is still v3.** v4 is a migration, not a bump: new
+  PostCSS/Vite plugin, CSS-first config, and renamed utilities this
+  project uses (`bg-gradient-to-*` → `bg-linear-to-*`, a different
+  `shadow-*`/`rounded-*` scale, `border` defaulting to `currentColor`).
+  The inflatie calculator uses v4 via `@tailwindcss/vite` as a reference.
 - `public/robots.txt` is empty (allows everything — fine, but it's a
   placeholder).
+- No web app manifest or `theme-color`, so "add to home screen" gives a
+  plain browser tab; and nothing keeps the screen awake during a turn
+  (Screen Wake Lock API).
 
 ## Hosting
 
@@ -246,8 +266,13 @@ calling a change done:
 
 - `npm run generate` must succeed (it's what CI runs). `npm run build`
   alone isn't what's deployed.
-- `npx nuxi typecheck` needs `vue-tsc` and `typescript`, which aren't
-  installed — ask before adding them.
+- Type-check without adding dependencies (expect no output):
+  ```
+  npx -y -p typescript@5 -p vue-tsc vue-tsc --noEmit -p tsconfig.json
+  ```
+  `typescript@5` is pinned because `vue-tsc` doesn't run on newer
+  TypeScript yet. Adding these as devDependencies plus a script is
+  fine, but ask first.
 - Play a full game in the browser at phone width (~390px), with
   `npm run dev` or `npx serve .output/public` (then open
   `/thirty-seconds-clone/`):
@@ -260,9 +285,10 @@ calling a change done:
     the same scores and turn;
   - play to the target score (pick 10) → winner screen → "Begin opnieuw"
     keeps the teams and resets the scores.
-- If you edited a word list, check it's valid JSON, has no duplicates,
-  and every cookie still fits:
+- If you edited a word list, check it's valid JSON, has no duplicates
+  (within or across lists), and every cookie still fits:
   ```
-  node -e "for(const c of ['people','places','wildcards','media','brands']){const a=require('./public/'+c+'.json').data;console.log(c,a.length,'dupes',a.length-new Set(a).size,'cookie bytes',Buffer.byteLength('available_'+c+'='+JSON.stringify(a)))}"
+  node -e "const cs=['people','places','wildcards','media','brands'],seen={};for(const c of cs){const a=require('./public/'+c+'.json').data;a.forEach(w=>(seen[w]=seen[w]||[]).push(c));console.log(c,a.length,'dupes',a.length-new Set(a).size,'cookie bytes',Buffer.byteLength('available_'+c+'='+JSON.stringify(a)))}console.log('in several lists',Object.entries(seen).filter(([,c])=>c.length>1))"
   ```
-  Every cookie must stay well under 4096 bytes.
+  Every cookie must stay well under 4096 bytes. The files are
+  `JSON.stringify(…, null, 2)` plus a trailing newline; keep that format.
