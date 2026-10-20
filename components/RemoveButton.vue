@@ -3,13 +3,20 @@
       v-if="canRemove"
       class="absolute right-2 top-2"
   >
-    <span
-        class="material-icons text-lg text-red-500 hover:text-red-600 cursor-pointer"
-        title="Verwijder team"
+    <button
+        type="button"
+        class="flex p-2 -m-2 text-red-500 hover:text-red-600 cursor-pointer"
+        :title="label"
+        :aria-label="label"
         @click="handleClick()"
     >
-      close
-    </span>
+      <span
+          class="material-icons text-lg"
+          aria-hidden="true"
+      >
+        close
+      </span>
+    </button>
   </div>
 </template>
 
@@ -19,6 +26,11 @@ const emit = defineEmits(['click']);
 const props = defineProps({
   canRemove: {
     type: Boolean,
+    required: true,
+  },
+
+  label: {
+    type: String,
     required: true,
   },
 });

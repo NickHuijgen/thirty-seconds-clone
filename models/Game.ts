@@ -72,10 +72,6 @@ export default class Game {
         this.is_in_progress = true;
     }
 
-    public start(): void {
-        this.goNextTurn();
-    }
-
     public startTurn(): void {
         this.setActiveWords();
 
@@ -159,10 +155,6 @@ export default class Game {
     }
 
     public setActiveWords(): void {
-        this.setUsed();
-
-        this.active_words = [];
-
         this.active_words = [
             this.getRandom(this.available_people),
             this.getRandom(this.available_places),
@@ -170,6 +162,9 @@ export default class Game {
             this.getRandom(this.available_media),
             this.getRandom(this.available_brands),
         ];
+
+        // Remove the words right away, so a game saved after this turn doesn't offer them again
+        this.setUsed();
     }
 
     public getRandom(array: string[]): string {
@@ -260,7 +255,7 @@ export default class Game {
         this.turn_timer = gameData.turn_timer;
         this.is_applying_score = gameData.is_applying_score;
         this.is_finished = gameData.is_finished;
-        this.winning_team = null;
+        this.winning_team = this.teams.find(team => team.score >= this.max_score) ?? null;
 
         this.available_people = JSON.parse(this.getCookie('available_people') || '[]');
         this.available_places = JSON.parse(this.getCookie('available_places') || '[]');

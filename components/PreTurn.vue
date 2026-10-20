@@ -5,7 +5,7 @@
     </p>
 
     <p class="text-xl text-center">
-      Geef de telefoon aan <b>{{ game.activeTeam().activePlayer().name }}</b>
+      Geef de telefoon aan <b>{{ game.activeTeam().activePlayer()?.name }}</b>
     </p>
   </div>
 
@@ -35,7 +35,7 @@
   </div>
 
   <p class="text-sm text-gray-500">
-    Volgende beurt is {{ game.nextUpTeam().activePlayer().name }} van {{ game.nextUpTeam().name }} aan de beurt
+    Volgende beurt is {{ game.nextUpTeam().activePlayer()?.name }} van {{ game.nextUpTeam().name }} aan de beurt
   </p>
 </template>
 

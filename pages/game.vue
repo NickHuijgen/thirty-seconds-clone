@@ -30,7 +30,7 @@ import Player from "~/models/Player";
 import Playing from "~/components/Playing.vue";
 import PostGame from "~/components/PostGame.vue";
 
-const game: Game = ref(new Game(50));
+const game = ref(new Game(50));
 
 const team1 = new Team('Team 1');
 

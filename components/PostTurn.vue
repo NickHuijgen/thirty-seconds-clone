@@ -11,18 +11,20 @@
         :key="index"
         class="p-2 w-full"
     >
-      <div
-          class="py-2 w-64 border pointer:cursor"
+      <button
+          type="button"
+          class="py-2 w-64 border cursor-pointer"
           :class="{
             'bg-green-100 border-green-500': selectedWords.includes(word),
             'bg-white': !selectedWords.includes(word),
           }"
+          :aria-pressed="selectedWords.includes(word)"
           @click="toggleWordSelect(word)"
       >
-        <p class="w-full text-center">
+        <span class="block w-full text-center">
           {{ word }}
-        </p>
-      </div>
+        </span>
+      </button>
     </div>
 
     <div class="pt-6 flex justify-center">
@@ -47,7 +49,7 @@ const props = defineProps({
   },
 });
 
-const selectedWords = ref([]);
+const selectedWords = ref<string[]>([]);
 
 function toggleWordSelect(word: string) {
   if (selectedWords.value.includes(word)) {

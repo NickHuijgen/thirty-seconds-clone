@@ -1,10 +1,15 @@
 <template>
   <div class="justify-center">
     <div class="flex justify-center items-center">
-      <div class="relative">
+      <button
+          type="button"
+          class="relative"
+          aria-label="Beëindig beurt"
+          @click="game.forceEndTurn()"
+      >
         <svg
-            @click="game.forceEndTurn()"
             class="timer-circle" viewBox="0 0 36 36"
+            aria-hidden="true"
         >
           <path
               class="circle-bg"
@@ -21,7 +26,7 @@
           />
           <text x="18" y="20.35" class="timer-text">{{ game.turn_timer }}</text>
         </svg>
-      </div>
+      </button>
     </div>
   </div>
 

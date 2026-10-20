@@ -1,5 +1,5 @@
 <template>
-  <div class="grid gris-cols-1">
+  <div class="grid grid-cols-1">
     <button
         v-if="game.canLoadFromCookies()"
         type="button"

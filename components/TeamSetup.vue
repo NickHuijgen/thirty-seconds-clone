@@ -1,11 +1,15 @@
 <template>
-  <div class="mb-1 font-medium">
+  <label
+      :for="inputId"
+      class="block mb-1 font-medium"
+  >
     Team {{ index + 1 }}
-  </div>
+  </label>
 
   <div class="relative">
     <RemoveButton
         :can-remove="canRemove"
+        label="Verwijder team"
         @click="removeTeam()"
     />
 
@@ -14,7 +18,7 @@
           v-model="team.name"
           type="text"
           name="team_name"
-          id="team_name"
+          :id="inputId"
           placeholder="Team naam"
           class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
       >
@@ -80,6 +84,8 @@ const props = defineProps({
     required: true,
   },
 });
+
+const inputId = useId();
 
 function addPlayer(team: Team) {
   team.addPlayer(new Player('Speler ' + (props.game?.playerCount() + 1)));

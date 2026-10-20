@@ -2,15 +2,22 @@
   <div class="relative">
     <RemoveButton
         :can-remove="canRemove"
-        @click="removePlayer(player)"
+        label="Verwijder speler"
+        @click="removePlayer()"
     />
 
     <div>
+      <label
+          :for="inputId"
+          class="sr-only"
+      >
+        Speler naam
+      </label>
       <input
           v-model="player.name"
           type="text"
           name="player_name"
-          id="player_name"
+          :id="inputId"
           placeholder="Speler naam"
           class="w-full px-3 py-2 border rounded-md dark:border-gray-300 dark:bg-gray-50 dark:text-gray-800"
       >
@@ -34,6 +41,8 @@ defineProps({
     required: true,
   },
 });
+
+const inputId = useId();
 
 function removePlayer() {
   emit('remove-player');
