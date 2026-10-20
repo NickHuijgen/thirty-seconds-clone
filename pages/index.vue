@@ -36,4 +36,8 @@
 
 <script setup lang="ts">
 import Screen from "~/components/Screen.vue";
+import { usePageColour } from "~/composables/usePageColour";
+import { TEAM_STYLES } from "~/utils/teamColours";
+
+usePageColour(() => TEAM_STYLES.emerald.hex);
 </script>

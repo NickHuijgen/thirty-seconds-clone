@@ -37,7 +37,7 @@ pushing to `main` *is* deploying.
 
 Started in October 2024 from the Nuxt 3 starter. In October 2026 it
 moved to Tailwind 4, saved games moved from cookies to `localStorage`,
-it got tests, a web app manifest and a screen wake lock — and Nuxt was
+it got tests, a web app manifest, a screen wake lock and offline support — and Nuxt was
 replaced by plain Vue + Vite. Nuxt ran here as a client-only SPA
 (`ssr: false`) and only `<NuxtPage>`/`<NuxtLink>` were used, while its
 server layer brought ~470 extra packages and every remaining `npm audit`
@@ -69,7 +69,9 @@ wins; never make a choice that only looks or works right on desktop.
   saved game is for (see Persistence), and the wake lock keeps the screen
   on in the first place. Don't break "Ga verder met bestaand spel".
 - It should feel like an app when added to the home screen: the manifest
-  opens it standalone, in portrait, with the emerald theme colour.
+  opens it standalone, in portrait, with the emerald theme colour, and
+  after one visit it works without a connection (see Offline) — parties
+  don't always have signal.
 - Keep it light: no new client libraries for things Vue already does.
 
 ## Invariants
@@ -238,6 +240,47 @@ full storage) is logged and the game carries on without one.
 Games saved as cookies before October 2026 aren't migrated; those
 cookies expired within 4 hours of the switch.
 
+## Offline
+
+The built site works without a connection after one visit, through a
+hand-written service worker (no library):
+
+- `pwa/service-worker.js` — the worker. On install it stores every file
+  of its version; it answers every request from that store first and
+  the network only for anything not stored; every page (`/`, `/game/`,
+  unknown paths) gets the stored `index.html`. It cuts stored files to
+  byte ranges itself (`withRange()`), because Safari asks for audio in
+  ranges and won't play a cached sound answered as a whole file. It
+  matches with `ignoreVary`, because a server sending `Vary: Origin`
+  otherwise makes the script, stylesheet and font (requested with
+  `crossorigin`) miss their stored copy — measured, not theoretical.
+  Plain JavaScript, a classic worker: it never goes through Vite.
+- `pwa/precache.ts` — which built files to store: everything in `dist/`
+  except the worker itself, the `404.html`/`game/index.html` copies,
+  `robots.txt`, and the public copies of the word lists and sounds
+  (bundled into `assets/` and never fetched). **A new file in `public/`
+  is stored automatically**; add it to `SKIP` only if nothing loads it.
+- The `serviceWorker` plugin in `vite.config.ts` writes `dist/sw.js`
+  after every build: the template with the file list and a version — a
+  hash of the worker's code and every stored file. Any change gives a
+  new version and a new cache.
+- `main.ts` registers `sw.js` in production builds only. In
+  `npm run dev` there's no worker at all, so nothing stale hides your
+  changes; `npm run preview` does run it (see Verification).
+
+**Updates.** After a deploy the browser fetches the changed `sw.js` in
+the background and installs the new version next to the old one. It
+takes over only once every open copy of the game has been closed (no
+`skipWaiting`), so a game is never swapped out mid-turn — at the cost
+of players seeing the old version for one more launch. Then the old
+cache is deleted. Don't add `skipWaiting()` without a "Nieuwe versie"
+prompt that only appears on the setup screen.
+
+**iPhone.** iOS can clear a website's stored data after a few weeks
+without a visit in a normal Safari tab; once the game is added to the
+home screen it's kept. Saved games (`localStorage`) and the stored files
+go together.
+
 ## Routes
 
 - `/` — `pages/index.vue`, welcome screen with a "Begin spel" link.
@@ -274,6 +317,13 @@ router matches both. The manifest's `start_url` is the welcome page.
   they never scroll, and the word cards (`min-h-0 flex-1`, two-line
   clamp, font size tied to `dvh`) shrink to fit — down to an iPhone SE
   (375×667).
+- **The page colour follows the screen.** Each screen calls
+  `usePageColour()` with its background (`TEAM_STYLES[…].hex` for team
+  screens, `PAGE_GREY`/`PAGE_SETUP` otherwise): it sets the `<html>`
+  background and the `theme-color` meta. iOS Safari shows that colour
+  under its address bar and toolbar (and older iOS tints the status bar
+  with `theme-color`). A new screen needs its own call, or that area
+  keeps the previous screen's colour.
 - **Main buttons** are `ActionButton.vue` (56px tall, full width). It has
   no colours of its own — pass them as classes (`class="bg-emerald-700
   text-white"`, or `bg-white` + the team's text colour on a coloured
@@ -304,9 +354,15 @@ router matches both. The manifest's `start_url` is the welcome page.
 - v4 names: `bg-linear-to-*` (not `bg-gradient-to-*`), `rounded-sm` is
   v3's `rounded`, `shadow-xs` is v3's `shadow-sm`, and `!` goes at the
   end (`text-8xl!`, used to override the Material Icons font size).
-- Icons: Material Icons from Google Fonts (a `<link>` in
-  `index.html`), used as ligatures
-  (`<span class="material-icons">close</span>`), always `aria-hidden`.
+- Icons: Material Icons, **self-hosted** (`public/fonts/material-icons.woff2`,
+  Google Fonts' own file, Apache 2.0) with Google's stylesheet rules in
+  `main.css` and a `<link rel="preload">` in `index.html` — so icons
+  work offline and nothing is loaded from another site. Used as
+  ligatures (`<span class="material-icons">close</span>`), always
+  `aria-hidden`. `font-display: block` hides an icon until the font is
+  there instead of showing its name. To update the font: fetch
+  `https://fonts.googleapis.com/css2?family=Material+Icons` with a modern
+  browser's User-Agent and download the woff2 it names.
 
 ### Animations
 
@@ -319,7 +375,7 @@ reduced motion the change is simply instant.
 | Screen changes | `pages/game.vue`, `Playing.vue` | `<Transition name="screen" mode="out-in">`, 120 ms slide + fade each way. Every screen needs a single root element and a `key`. |
 | Words dealt in | `ActiveTurn.vue` | `animate-deal-in` with a 50 ms `animation-delay` per card — 250 ms in total, so it never costs reading time. |
 | Timer urgency | `ActiveTurn.vue` | Ring colour by `urgency` (green → amber ≤ 10 s → red ≤ 5 s), `animate-urgent` pulse when red. |
-| Time's up | `PostTurn.vue` | A fixed red overlay with `animate-flash` (fades from 60% to 0), **removed on `animationend`** and never rendered with reduced motion. iOS Safari tints its toolbar area with the background colour of any fixed element at the screen's edge — even a fully transparent one — so a faded-out overlay left in place kept the bottom of the screen red. Same rule for any future full-screen or edge-touching fixed element with a background: remove it when it's done. |
+| Time's up | `PostTurn.vue` | The scoring screen's own background flashes red (`animate-flash` fades from `red-300` to its normal grey). Deliberately **not** a fixed overlay: iOS Safari tints its toolbar area with the background colour of any fixed element at the screen's edge — even a fully transparent one — which kept the bottom of the screen red after every turn. Don't put a coloured `fixed` element against a screen edge for longer than a moment. |
 | Word tick | `PostTurn.vue` | `animate-pop` on a tile when it becomes selected. |
 | Score | `Leaderboard.vue` | Shows the scores from *before* `last_turn` for 400 ms, then the new ones: the bar grows (`transition-[width]`), rows slide into the new order (`<TransitionGroup name="leaderboard">`), and a `+N` badge pops (`animate-score-pop`). |
 | Winner | `PostGame.vue`, `Confetti.vue` | Canvas confetti in the winner's colours, the trophy and title with `animate-bounce-in`. Also on the welcome screen's hourglass and the handoff name. |
@@ -351,9 +407,6 @@ Not fixed yet. Ask before fixing as a side effect of something else.
 
 - `public/robots.txt` is empty (allows everything — fine, but it's a
   placeholder).
-- No service worker, so the game needs a connection to load. It's a
-  small static site; offline support would be the next step towards a
-  real app, but it adds caching to reason about on every deploy.
 
 ## Hosting
 
@@ -394,6 +447,11 @@ Before calling a change done:
     missing `localStorage`, and exactly which keys are saved.
   - `test/words.test.ts` — the real word lists: format, trimmed
     non-empty words, no duplicates within or across lists, ≥ 100 each.
+  - `test/service-worker.test.ts` — the stored-file list against a real
+    `dist/` listing, that the template's placeholders exist exactly
+    once, and `withRange()` (run from the real worker script in a Node
+    `vm`): whole files, exact, open-ended, suffix and out-of-range
+    byte ranges.
   - `test/helpers.ts` — a Map-backed `localStorage`, fixture word lists,
     a sound recorder, and `newGame()`/`playTurn()`.
   When you fix a bug in the models, add the test that would have caught
@@ -429,6 +487,18 @@ Before calling a change done:
   doesn't — e.g. symlink `dist` as `thirty-seconds-clone` inside an empty
   folder and run `python3 -m http.server` there. Reload on `/game/` must
   load the app.
+- If you touched `pwa/`, `vite.config.ts` or anything in `public/`:
+  `npm run build && npm run preview`, load the site once, check
+  DevTools → Application → Service workers (activated) and Cache storage
+  (one `thirty-seconds-<version>` cache with exactly the files from
+  `precacheFiles()`). Then **stop the preview server** — stricter than
+  DevTools' offline switch — and reload on `/game/`: the app, the icons
+  (rendered as icons, not as their names) and both sounds must work.
+  For an update: rebuild with a change, reload once (the new version
+  shows as *waiting*), close every tab of the site, open it again (the
+  new version is active, the old cache is gone). Afterwards unregister
+  the worker and clear the cache for that localhost address, or it
+  keeps serving the old build there.
 - If you touched `index.html` head links, the manifest or the icons:
   open DevTools → Application → Manifest on the built site and check it
   parses, every icon loads, and Chrome offers to install it.

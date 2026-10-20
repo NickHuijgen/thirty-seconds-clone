@@ -43,6 +43,7 @@ import Confetti from "~/components/Confetti.vue";
 import Screen from "~/components/Screen.vue";
 import ActionButton from "~/components/ActionButton.vue";
 import { TEAM_STYLES } from "~/utils/teamColours";
+import { usePageColour } from "~/composables/usePageColour";
 
 const props = defineProps({
   game: {
@@ -54,6 +55,8 @@ const props = defineProps({
 const emit = defineEmits(['restart-game']);
 
 const style = computed(() => TEAM_STYLES[props.game.winning_team?.colour ?? 'emerald']);
+
+usePageColour(() => style.value.hex);
 
 function restartGame() {
   emit('restart-game');

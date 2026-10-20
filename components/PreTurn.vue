@@ -55,6 +55,7 @@ import Leaderboard from "~/components/Leaderboard.vue";
 import Screen from "~/components/Screen.vue";
 import ActionButton from "~/components/ActionButton.vue";
 import { TEAM_STYLES } from "~/utils/teamColours";
+import { usePageColour } from "~/composables/usePageColour";
 
 const props = defineProps({
   game: {
@@ -65,4 +66,6 @@ const props = defineProps({
 
 const team = computed(() => props.game.activeTeam());
 const style = computed(() => TEAM_STYLES[team.value.colour]);
+
+usePageColour(() => style.value.hex);
 </script>

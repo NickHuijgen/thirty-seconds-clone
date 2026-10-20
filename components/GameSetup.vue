@@ -109,6 +109,8 @@ import Team from "~/models/Team";
 import Player from "~/models/Player";
 import Screen from "~/components/Screen.vue";
 import ActionButton from "~/components/ActionButton.vue";
+import { usePageColour } from "~/composables/usePageColour";
+import { PAGE_SETUP } from "~/utils/teamColours";
 
 const SCORE_OPTIONS = [10, 25, 50, 100];
 
@@ -120,6 +122,8 @@ defineProps({
 });
 
 const emit = defineEmits(['resume-game']);
+
+usePageColour(() => PAGE_SETUP);
 
 function addTeam(game: Game) {
   const team = new Team('Team ' + (game.teamCount() + 1));

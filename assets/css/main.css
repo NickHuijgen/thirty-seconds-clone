@@ -1,11 +1,41 @@
 @import "tailwindcss";
 
+/* Material Icons, self-hosted so the game works offline (Apache License 2.0, by Google).
+   public/fonts/material-icons.woff2 is Google Fonts' own file (v145); the rules below are Google's
+   own stylesheet for it. `block` hides an icon until the font is there, instead of showing its name. */
+@font-face {
+    font-family: 'Material Icons';
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url('/fonts/material-icons.woff2') format('woff2');
+}
+
+@layer components {
+    .material-icons {
+        font-family: 'Material Icons';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-feature-settings: 'liga';
+        font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+    }
+}
+
 /* Animations. Use them as motion-safe:animate-*, so they're skipped when the phone asks for reduced motion. */
 @theme {
     --animate-pop: pop 200ms ease-out;
     --animate-deal-in: deal-in 250ms ease-out both;
     --animate-score-pop: score-pop 1200ms ease-out 400ms both;
-    --animate-flash: flash 500ms ease-out both;
+    --animate-flash: flash 600ms ease-out;
     --animate-bounce-in: bounce-in 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
     --animate-urgent: urgent 1s ease-in-out infinite;
 
@@ -24,9 +54,9 @@
         100% { opacity: 0; transform: translateY(-16px); }
     }
 
+    /* Fades from red to the element's own background colour */
     @keyframes flash {
-        from { opacity: 0.6; }
-        to { opacity: 0; }
+        from { background-color: var(--color-red-300); }
     }
 
     @keyframes bounce-in {

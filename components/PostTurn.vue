@@ -1,15 +1,7 @@
 <template>
-  <div class="bg-gray-50 text-gray-900">
-    <!-- Time's up: one red flash over the whole screen. Removed as soon as it has faded:
-         iOS Safari tints its toolbar area with the colour of a fixed element at the screen's edge,
-         even a transparent one, so leaving it in place keeps the bottom of the screen red. -->
-    <div
-        v-if="flashing"
-        class="pointer-events-none fixed inset-0 z-40 bg-red-500 opacity-0 animate-flash"
-        aria-hidden="true"
-        @animationend="flashing = false"
-    />
-
+  <!-- Time's up: the screen's own background flashes red and fades to grey. Deliberately not a
+       fixed overlay: iOS Safari tints its toolbars with the colour of fixed elements at the screen's edge. -->
+  <div class="bg-gray-50 text-gray-900 motion-safe:animate-flash">
     <Screen :scrollable="false">
       <header>
         <h1 class="text-3xl font-extrabold">
@@ -71,9 +63,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import Game, { CATEGORIES } from "~/models/Game";
+import { PAGE_GREY } from "~/utils/teamColours";
 import Screen from "~/components/Screen.vue";
 import ActionButton from "~/components/ActionButton.vue";
 import { CATEGORY_INFO } from "~/utils/categories";
+import { usePageColour } from "~/composables/usePageColour";
 
 defineProps({
   game: {
@@ -84,8 +78,7 @@ defineProps({
 
 const selectedWords = ref<string[]>([]);
 
-// With reduced motion there's no flash at all (it would never end, so never be removed)
-const flashing = ref(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+usePageColour(() => PAGE_GREY);
 
 // active_words holds one word per category, in CATEGORIES order
 function categoryOf(index: number) {

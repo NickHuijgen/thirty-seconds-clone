@@ -15,3 +15,12 @@ const router = createRouter({
 });
 
 createApp(App).use(router).mount('#app');
+
+// Offline support: the service worker vite.config.ts builds into dist/sw.js. Never in development,
+// where a stored copy of an old version would hide your changes.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+            .catch(error => console.log('Service worker registration failed:', error));
+    });
+}

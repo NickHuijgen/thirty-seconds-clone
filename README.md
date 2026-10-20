@@ -11,7 +11,8 @@ woord is een punt; het eerste team dat de puntengrens haalt wint.
 
 Een lopend spel wordt na elke beurt op je telefoon bewaard, zodat je na
 het herladen van de pagina verder kunt. Tijdens een spel blijft het
-scherm aan, en je kunt de site als app aan je beginscherm toevoegen.
+scherm aan, je kunt de site als app aan je beginscherm toevoegen, en na
+één bezoek werkt het spel ook zonder internet.
 
 ## About
 
@@ -23,8 +24,9 @@ them to their team. Each guessed word is a point; the first team to the
 target score wins.
 
 A game in progress is saved on the phone after every turn, so it
-survives a page reload. The screen stays on during a game, and the site
-can be added to the home screen as an app.
+survives a page reload. The screen stays on during a game, the site can
+be added to the home screen as an app, and after one visit the game also
+works without an internet connection.
 
 ## Setup
 

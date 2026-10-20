@@ -94,7 +94,8 @@ import { computed } from "vue";
 import Game, { CATEGORIES, TURN_SECONDS } from "~/models/Game";
 import Screen from "~/components/Screen.vue";
 import { CATEGORY_INFO } from "~/utils/categories";
-import { TEAM_STYLES } from "~/utils/teamColours";
+import { PAGE_GREY, TEAM_STYLES } from "~/utils/teamColours";
+import { usePageColour } from "~/composables/usePageColour";
 
 const props = defineProps({
   game: {
@@ -111,6 +112,8 @@ const RING = {
 
 const team = computed(() => props.game.activeTeam());
 const style = computed(() => TEAM_STYLES[team.value.colour]);
+
+usePageColour(() => PAGE_GREY);
 
 const urgency = computed(() => {
   if (props.game.turn_timer <= 5) {
