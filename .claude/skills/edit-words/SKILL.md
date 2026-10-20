@@ -16,8 +16,11 @@ run `npm test`, it takes a second.
 ### 0. Sync first
 
 ```
-git pull --ff-only
+git pull --ff-only origin main
 ```
+
+(Name the remote and branch: the local `main` has no upstream set, so a
+bare `git pull` stops with "There is no tracking information".)
 
 ### 1. Work out the request
 
