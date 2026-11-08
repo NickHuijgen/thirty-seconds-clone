@@ -7,7 +7,7 @@ import { precacheFiles } from '../pwa/precache.ts';
 
 // What `vite build` produces (hashes vary per build)
 const BUILT = [
-    '404.html',
+    '_headers',
     'apple-touch-icon.png',
     'assets/index-BAbGcPBa.js',
     'assets/index-DnzTvv3w.css',
@@ -16,7 +16,6 @@ const BUILT = [
     'brands.json',
     'favicon.svg',
     'fonts/material-icons.woff2',
-    'game/index.html',
     'icon-192.png',
     'icon-512.png',
     'index.html',

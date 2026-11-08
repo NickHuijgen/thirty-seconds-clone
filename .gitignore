@@ -1,6 +1,9 @@
 # Vite build output
 dist
 
+# Wrangler's local state (npx wrangler dev)
+.wrangler
+
 # Node dependencies
 node_modules
 

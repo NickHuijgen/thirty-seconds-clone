@@ -5,10 +5,9 @@ import { CATEGORIES } from '../models/Game.ts';
 const SKIP: RegExp[] = [
     // The service worker itself
     /^sw\.js$/,
-    // Copies of index.html for GitHub Pages; the worker answers every page with index.html
-    /^404\.html$/,
-    /^game\/index\.html$/,
     /^robots\.txt$/,
+    // Read by Cloudflare, never served
+    /^_headers$/,
     // The word lists and sounds in public/ are bundled into assets/ (utils/words.ts, utils/sounds.ts);
     // their public copies are served too, but nothing fetches them
     ...CATEGORIES.map(category => new RegExp(`^${category}\\.json$`)),

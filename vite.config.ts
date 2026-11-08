@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
@@ -8,28 +8,8 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { precacheFiles } from './pwa/precache.ts';
 
-// GitHub Pages serves the site from /<repo-name>/
-const BASE = '/thirty-seconds-clone/';
-
-// GitHub Pages has no SPA fallback. Copy the app shell to every route's own index.html,
-// so reloading /game works, and to 404.html for anything else.
-const ROUTES = ['game'];
-
-function spaShells(): Plugin {
-    return {
-        name: 'spa-shells',
-        apply: 'build',
-        async closeBundle() {
-            const index = fileURLToPath(new URL('./dist/index.html', import.meta.url));
-            for (const route of ROUTES) {
-                const dir = fileURLToPath(new URL(`./dist/${route}/`, import.meta.url));
-                await mkdir(dir, { recursive: true });
-                await copyFile(index, `${dir}index.html`);
-            }
-            await copyFile(index, fileURLToPath(new URL('./dist/404.html', import.meta.url)));
-        },
-    };
-}
+// Served from the root of thirty-seconds-clone.nickhuijgen.nl (wrangler.jsonc)
+const BASE = '/';
 
 // Writes dist/sw.js from pwa/service-worker.js: the list of files to store for offline play
 // (pwa/precache.ts), and a version that changes whenever any of those files does
@@ -65,7 +45,6 @@ export default defineConfig({
     plugins: [
         vue(),
         tailwindcss(),
-        spaShells(),
         serviceWorker(),
     ],
     resolve: {

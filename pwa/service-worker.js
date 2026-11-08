@@ -3,7 +3,7 @@
 // worker script, outside Vite's bundling.
 
 const VERSION = '__VERSION__';
-// Paths relative to this worker's URL, so relative to the site's base (/thirty-seconds-clone/)
+// Paths relative to this worker's URL, so relative to the site's base
 const FILES = __FILES__;
 
 const CACHE_PREFIX = 'thirty-seconds-';

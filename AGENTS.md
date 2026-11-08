@@ -1,7 +1,6 @@
 ## Development
 
-Start the dev server (http://localhost:5173/thirty-seconds-clone/ — note
-the base URL, see Routes):
+Start the dev server (http://localhost:5173/):
 
 ```
 npm run dev
@@ -23,7 +22,7 @@ Consult these before working on related tasks:
 # 30 Seconds
 
 A browser clone of the Dutch party game *30 Seconds*, Dutch only, live at
-https://nickhuijgen.github.io/thirty-seconds-clone/. One phone is passed
+https://thirty-seconds-clone.nickhuijgen.nl/. One phone is passed
 around the table: the active player sees five words (one person, place,
 wildcard, film/series/song and brand) and has 30 seconds to describe them
 to their teammates; afterwards they tick the words that were guessed, and
@@ -31,7 +30,7 @@ each guessed word is one point. First team to the target score wins.
 
 A Vue 3 single-page app (`<script setup>`, Vue Router) built with Vite,
 styled with Tailwind CSS v4, no backend. `npm run build` produces a
-static site in `dist/` that GitHub Pages serves; GitHub Actions
+static site in `dist/` that a Cloudflare Worker serves; GitHub Actions
 type-checks, tests, builds and deploys it on every push to `main` —
 pushing to `main` *is* deploying.
 
@@ -85,8 +84,7 @@ Places that have to say the same thing or it silently breaks. Marked
 | **[test]** A word list in `public/*.json` | `test/words.test.ts` | Format, no duplicates within or across lists (case- and accent-insensitive), at least 100 words each. Use the `edit-words` skill. |
 | The set of categories | `CATEGORIES` and `Game.emptyWordLists()` in `models/Game.ts`, `utils/words.ts`, `CATEGORY_INFO` in `utils/categories.ts`, and a `public/<category>.json` | Everything else loops over `CATEGORIES`. The `WordLists` and `Record<Category, …>` types make a missing key a type error (`npm run check`). The word cards rely on `active_words` being in `CATEGORIES` order to pick each card's icon. |
 | `TEAM_COLOURS` (`models/Team.ts`) | `TEAM_STYLES` in `utils/teamColours.ts` | `TEAM_STYLES` is a `Record<TeamColour, …>`, so a new colour without styles is a type error. Its classes must be written out in full (see Style). |
-| `BASE` in `vite.config.ts` | The GitHub repo name | GitHub Pages serves the site under `/<repo-name>/`. Everything else follows `BASE`: Vite prefixes the absolute paths in `index.html` (`/favicon.svg` → `/thirty-seconds-clone/favicon.svg`) and the router uses `import.meta.env.BASE_URL`. Keep `index.html` paths **absolute** — a relative `favicon.svg` would break on `/game/`. The manifest is the exception: its `start_url`, `scope` and icons are relative to the manifest file itself, so they stay relative. |
-| A route in `main.ts` | `ROUTES` in `vite.config.ts` | GitHub Pages has no SPA fallback, so the build copies `index.html` to `<route>/index.html` for every route in `ROUTES` (and to `404.html`). A route missing there still works when navigated to in the app, but 404s on reload. |
+| `BASE` in `vite.config.ts` | Where the site is served (`wrangler.jsonc`) | The site is at the root of its own subdomain, so `BASE` is `/`. If it ever moves under a path, everything else follows `BASE`: Vite prefixes the absolute paths in `index.html` and the router and service worker registration use `import.meta.env.BASE_URL`. Keep `index.html` paths **absolute** — a relative `favicon.svg` would break on `/game/`. The manifest is the exception: its `start_url`, `scope` and icons are relative to the manifest file itself, so they stay relative. |
 | `theme_color` in `public/manifest.webmanifest` | The `theme-color` meta in `index.html` and the background in `design/app-icon.svg` | The same emerald (`#047857`, Tailwind `emerald-700`), stated three times. |
 | The app icon | `public/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` | All three are rendered from `design/app-icon.svg`; the command is in a comment at the top of that file. The hourglass stays inside the middle 50%, so Android's maskable crop never cuts it. |
 | A component used in a template | Its `import` in that file's `<script setup>` | Nothing is auto-imported any more — not components, not `ref`/`computed`/`watch`. `strictTemplates` (`tsconfig.json`) makes an unimported component a type error, so `npm run check` catches it; without that it would just render nothing. |
@@ -256,9 +254,8 @@ hand-written service worker (no library):
   `crossorigin`) miss their stored copy — measured, not theoretical.
   Plain JavaScript, a classic worker: it never goes through Vite.
 - `pwa/precache.ts` — which built files to store: everything in `dist/`
-  except the worker itself, the `404.html`/`game/index.html` copies,
-  `robots.txt`, and the public copies of the word lists and sounds
-  (bundled into `assets/` and never fetched). **A new file in `public/`
+  except the worker itself, `robots.txt`, `_headers`, and the public copies of the
+  word lists and sounds (bundled into `assets/` and never fetched). **A new file in `public/`
   is stored automatically**; add it to `SKIP` only if nothing loads it.
 - The `serviceWorker` plugin in `vite.config.ts` writes `dist/sw.js`
   after every build: the template with the file list and a version — a
@@ -289,12 +286,18 @@ go together.
 
 - Anything else redirects to `/` (catch-all route in `main.ts`).
 
-Routes are defined in `main.ts` (`createWebHistory`), all under
-`base: '/thirty-seconds-clone/'` (GitHub Pages project site). The build
-writes `index.html`, plus identical copies at `game/index.html` and
-`404.html` (the `spaShells` plugin in `vite.config.ts`), so a reload on
-any URL loads the app. GitHub Pages redirects `/game` to `/game/`; the
-router matches both. The manifest's `start_url` is the welcome page.
+Routes are defined in `main.ts` (`createWebHistory`), at the root of
+the domain. The build writes a single `index.html`; Cloudflare answers
+every URL that isn't a file with it (`not_found_handling:
+"single-page-application"` in `wrangler.jsonc`), so a reload on any URL
+loads the app, and a new route needs nothing outside `main.ts`. The
+router matches `/game` and `/game/`. The manifest's `start_url` is the
+welcome page.
+
+`html_handling` is `"none"` on purpose: Cloudflare's default redirects
+`/index.html` to `/`, the service worker would store that redirect for
+`index.html`, and browsers refuse a stored redirect as the answer to a
+page load — the app would fail to open once the worker is active.
 
 ## Style
 
@@ -413,8 +416,17 @@ Not fixed yet. Ask before fixing as a side effect of something else.
 | Piece | Where | Setting |
 |---|---|---|
 | Repo | GitHub `NickHuijgen/thirty-seconds-clone`, public | Default branch `main`. |
-| Build & deploy | `.github/workflows/deploy.yml` | On push to `main` (and manual dispatch): Node 22, `npm ci`, `npm run check`, `npm test`, `npm run build`, upload `dist`, deploy with `actions/deploy-pages`. A failing type check or test stops the deploy. |
-| Hosting | GitHub Pages (build type "workflow") | https://nickhuijgen.github.io/thirty-seconds-clone/ — no custom domain. |
+| Build & deploy | Cloudflare's Git integration (Workers Builds), set up in the Cloudflare dashboard — the same setup as the portfolio | On push to `main`: `npm ci`, build command `npm run verify` (check, test, build — so a failing type check or test stops the deploy), deploy command `npx wrangler deploy`. Other branches get a preview build. Node comes from `.node-version`: the tests need a Node 22 that strips types without a flag (≥ 22.18). No GitHub workflow and no secrets. `wrangler` is a dev dependency, so the deploy uses the locked version. |
+| Hosting | Cloudflare Worker `thirty-seconds-clone`, static assets only (`wrangler.jsonc`) | https://thirty-seconds-clone.nickhuijgen.nl/ — a custom domain on the `nickhuijgen.nl` zone, which also hosts the portfolio at the apex. Wrangler creates the DNS record and certificate. |
+
+Until November 2026 it was on GitHub Pages at
+`nickhuijgen.github.io/thirty-seconds-clone/`; that site was switched
+off without a redirect.
+
+`public/_headers` (Cloudflare's headers file) lets browsers keep the
+content-hashed files in `assets/` for a year; everything else is
+revalidated on every load, which `sw.js` relies on to pick up a new
+version.
 
 `dist/` is the build output and is gitignored. `npm audit` was clean
 after the move to Vite (October 2026); keep it that way.
@@ -460,7 +472,7 @@ Before calling a change done:
   browser window won't shrink that far, load the app in a 390×844
   `<iframe>` on a page of the same origin — with
   `npm run dev`, or `npm run build && npm run preview` for the built
-  site (then open `/thirty-seconds-clone/`):
+  site:
   - add and remove a team and a player (remove buttons only above 2);
   - start, play a turn to the end of the timer, and one ended early by
     tapping the ring; both sounds play;
@@ -482,11 +494,10 @@ Before calling a change done:
     just without movement, and the confetti doesn't appear;
   - the screen stays on during a game: wrap `navigator.wakeLock.request`
     in the console to log calls, or watch the phone not dim.
-- If you touched routes or `vite.config.ts`: build, then serve `dist/`
-  *without* an SPA fallback — `vite preview` has one, GitHub Pages
-  doesn't — e.g. symlink `dist` as `thirty-seconds-clone` inside an empty
-  folder and run `python3 -m http.server` there. Reload on `/game/` must
-  load the app.
+- If you touched `wrangler.jsonc` or `vite.config.ts`: build, then serve
+  `dist/` the way Cloudflare does with `npx wrangler dev`. `/`, `/index.html`, `/game` and
+  `/game/` must all answer 200 with the app — no redirects — and every
+  file in `dist/` must be served as itself.
 - If you touched `pwa/`, `vite.config.ts` or anything in `public/`:
   `npm run build && npm run preview`, load the site once, check
   DevTools → Application → Service workers (activated) and Cache storage

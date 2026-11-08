@@ -3,7 +3,7 @@
 ## Over
 
 Een browserversie van het partyspel *30 Seconds*, te spelen op
-https://nickhuijgen.github.io/thirty-seconds-clone/. Eén telefoon gaat
+https://thirty-seconds-clone.nickhuijgen.nl/. Eén telefoon gaat
 de kring rond: de speler die aan de beurt is krijgt vijf woorden — een
 persoon, een plaats, een wildcard, een film of serie en een merk — en
 heeft 30 seconden om ze aan zijn of haar team te omschrijven. Elk geraden
@@ -17,7 +17,7 @@ scherm aan, je kunt de site als app aan je beginscherm toevoegen, en na
 ## About
 
 A browser version of the party game *30 Seconds* (in Dutch), playable at
-https://nickhuijgen.github.io/thirty-seconds-clone/. One phone is passed
+https://thirty-seconds-clone.nickhuijgen.nl/. One phone is passed
 around: the active player gets five words — a person, a place, a
 wildcard, a film or series and a brand — and has 30 seconds to describe
 them to their team. Each guessed word is a point; the first team to the
@@ -35,8 +35,8 @@ for phones. No backend: the word lists are
 JSON files in `public/` bundled into the app, and a game is saved in
 `localStorage`.
 
-Deployed to GitHub Pages by GitHub Actions on every push to `main`, after
-the type check and tests pass (`.github/workflows/deploy.yml`). See [`AGENTS.md`](./AGENTS.md) for the
+Deployed to a Cloudflare Worker (`wrangler.jsonc`) by Cloudflare's Git
+integration on every push to `main`, after the type check and tests pass. See [`AGENTS.md`](./AGENTS.md) for the
 full picture — game flow, persistence, invariants, verification — it's
 the primary reference for working on this codebase, human or AI.
 
@@ -45,7 +45,7 @@ All commands run from the project root:
 | Command | Action |
 | :--- | :--- |
 | `npm install` | Install dependencies |
-| `npm run dev` | Start the dev server at `localhost:5173/thirty-seconds-clone/` |
+| `npm run dev` | Start the dev server at `localhost:5173` |
 | `npm run build` | Build the static site to `./dist/` — what CI deploys |
 | `npm run preview` | Preview the build locally |
 | `npm run check` | Type-check the app and tests (`vue-tsc`) |

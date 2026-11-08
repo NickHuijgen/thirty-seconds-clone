@@ -1,0 +1,19 @@
+// Cloudflare Worker that serves the built site (dist/). No server code: the Worker only has static
+// assets. Cloudflare's Git integration builds (`npm run verify`) and deploys (`npx wrangler deploy`)
+// every push to main.
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "thirty-seconds-clone",
+    "compatibility_date": "2026-11-01",
+    "assets": {
+        "directory": "./dist",
+        // Every page (/, /game/, anything else) gets index.html; the router takes it from there
+        "not_found_handling": "single-page-application",
+        // The default redirects /index.html to /. The service worker stores index.html to answer every
+        // page, and browsers won't use a stored redirect for a page load, so that would break offline play.
+        "html_handling": "none"
+    },
+    "routes": [
+        { "pattern": "thirty-seconds-clone.nickhuijgen.nl", "custom_domain": true }
+    ]
+}
