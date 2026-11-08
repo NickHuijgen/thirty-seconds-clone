@@ -35,7 +35,7 @@
               {{ categoryOf(index).icon }}
             </span>
             <span class="sr-only">{{ categoryOf(index).label }}:</span>
-            <span class="line-clamp-2 flex-1 text-[clamp(1.25rem,3.4dvh,1.5rem)] leading-tight font-bold break-words">{{ word }}</span>
+            <span class="line-clamp-2 flex-1 text-[clamp(1.25rem,3.4dvh,1.5rem)] leading-snug font-bold break-words">{{ word }}</span>
             <span
                 class="material-icons shrink-0 text-green-700"
                 :class="selectedWords.includes(word) ? '' : 'invisible'"
