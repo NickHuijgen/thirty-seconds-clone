@@ -1,6 +1,7 @@
 /// <reference types="node" />
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
@@ -10,6 +11,30 @@ import { precacheFiles } from './pwa/precache.ts';
 
 // Served from the root of thirty-seconds-clone.nickhuijgen.nl (wrangler.jsonc)
 const BASE = '/';
+
+// Online play in `npm run dev`: the Worker (server/) runs next to Vite in `wrangler dev`, and Vite
+// forwards /api and /ws to it, so the page and its WebSocket share one origin, like in production
+const WORKER_PORT = 8787;
+
+function workerDev(): Plugin {
+    let worker: ChildProcess | undefined;
+
+    return {
+        name: 'worker-dev',
+        apply: 'serve',
+        async configureServer(server) {
+            // wrangler refuses to start without the assets directory, even though Vite serves the page here
+            await mkdir(fileURLToPath(new URL('./dist/', import.meta.url)), { recursive: true });
+
+            worker = spawn('npx', ['wrangler', 'dev', '--port', String(WORKER_PORT), '--show-interactive-dev-session=false'], {
+                stdio: ['ignore', 'inherit', 'inherit'],
+            });
+            const stop = () => worker?.kill();
+            server.httpServer?.on('close', stop);
+            process.on('exit', stop);
+        },
+    };
+}
 
 // Writes dist/sw.js from pwa/service-worker.js: the list of files to store for offline play
 // (pwa/precache.ts), and a version that changes whenever any of those files does
@@ -46,7 +71,14 @@ export default defineConfig({
         vue(),
         tailwindcss(),
         serviceWorker(),
+        workerDev(),
     ],
+    server: {
+        proxy: {
+            '/api/': `http://localhost:${WORKER_PORT}`,
+            '/ws/': { target: `ws://localhost:${WORKER_PORT}`, ws: true },
+        },
+    },
     resolve: {
         alias: {
             '~': fileURLToPath(new URL('./', import.meta.url)),

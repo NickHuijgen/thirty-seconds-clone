@@ -20,6 +20,34 @@ const SAVE_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
 
 const silent: LoadSound = () => ({ play() {} });
 
+// The score of the turn that just ended. Online play adds the words and which of them were guessed,
+// so every phone can check the result on the next handoff screen.
+export interface LastTurn {
+    team_index: number;
+    score: number;
+    words?: string[];
+    guessed?: number[];
+}
+
+// What save() writes and fromSaved() reads back; online, the room stores the same shape
+export interface SavedGame {
+    expires_at: number;
+    max_score: number;
+    teams: {
+        name: string;
+        score: number;
+        index: number;
+        active_player_index: number;
+        colour: TeamColour;
+        players: { name: string, index: number, id: string }[];
+    }[];
+    is_in_progress: boolean;
+    active_team_index: number;
+    is_finished: boolean;
+    // Missing in saves from before it was stored
+    available?: WordLists;
+}
+
 export default class Game {
     max_score: number;
     teams: Team[] = [];
@@ -42,7 +70,7 @@ export default class Game {
     winning_team: Team | null = null;
 
     // The score of the turn that just ended, for the "+3" on the leaderboard. Not saved: a resume doesn't replay it.
-    last_turn: { team_index: number, score: number } | null = null;
+    last_turn: LastTurn | null = null;
 
     public constructor(max_score: number, words: WordLists, loadSound: LoadSound = silent) {
         this.max_score = max_score;
@@ -97,14 +125,14 @@ export default class Game {
         this.is_in_progress = true;
     }
 
+    // One phone: deals the words, plays the sounds and runs the countdown
     public startTurn(): void {
-        this.setActiveWords();
+        this.beginTurn();
 
         this.loadSound('turn-start').play();
 
         const timeUp = this.loadSound('vine-boom');
 
-        this.turn_timer = TURN_SECONDS;
         this.interval = setInterval(() => {
             this.turn_timer -= 1;
 
@@ -113,23 +141,49 @@ export default class Game {
             }
 
             if (this.turn_timer <= 0) {
-                clearInterval(this.interval);
+                this.stopTimer();
 
-                this.is_applying_score = true;
+                this.endTurn();
             }
         }, 1000);
     }
 
+    public stopTimer(): void {
+        if (this.interval !== undefined) {
+            clearInterval(this.interval);
+            this.interval = undefined;
+        }
+    }
+
+    // The rules of starting a turn, without sounds or a timer, so the online server can call it too
+    public beginTurn(): void {
+        this.setActiveWords();
+
+        this.turn_timer = TURN_SECONDS;
+    }
+
     public forceEndTurn(): void {
-        clearInterval(this.interval);
-        this.turn_timer = 0;
+        this.stopTimer();
 
         this.loadSound('vine-boom').play();
+
+        this.endTurn();
+    }
+
+    // Time's up (or the turn was stopped): on to scoring
+    public endTurn(): void {
+        this.turn_timer = 0;
 
         this.is_applying_score = true;
     }
 
     public finishTurn(score: number): void {
+        this.scoreTurn(score);
+        this.save();
+    }
+
+    // The rules of finishing a turn, without saving to this browser, so the online server can call it too
+    public scoreTurn(score: number): void {
         this.is_applying_score = false;
 
         this.activeTeam().score += score;
@@ -141,7 +195,6 @@ export default class Game {
         }
 
         this.goNextTurn();
-        this.save();
     }
 
     public generateTeamIndexes(): void {
@@ -210,7 +263,16 @@ export default class Game {
     }
 
     public save(): void {
-        const saved = {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.toSaved()));
+        } catch (error) {
+            // Private browsing or full storage: the game still works, it just can't be resumed
+            console.log('Saving the game failed:', error);
+        }
+    }
+
+    public toSaved(): SavedGame {
+        return {
             expires_at: Date.now() + SAVE_DURATION,
             max_score: this.max_score,
             teams: this.teams.map(team => ({
@@ -219,20 +281,13 @@ export default class Game {
                 index: team.index,
                 active_player_index: team.active_player_index,
                 colour: team.colour,
-                players: team.players.map(player => ({ name: player.name, index: player.index })),
+                players: team.players.map(player => ({ name: player.name, index: player.index, id: player.id })),
             })),
             is_in_progress: this.is_in_progress,
             active_team_index: this.active_team_index,
             is_finished: this.is_finished,
             available: this.available,
         };
-
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-        } catch (error) {
-            // Private browsing or full storage: the game still works, it just can't be resumed
-            console.log('Saving the game failed:', error);
-        }
     }
 
     public loadSaved(): void {
@@ -242,6 +297,17 @@ export default class Game {
             return;
         }
 
+        this.applySaved(saved);
+    }
+
+    public static fromSaved(saved: SavedGame, words: WordLists, loadSound: LoadSound = silent): Game {
+        const game = new Game(saved.max_score, words, loadSound);
+        game.applySaved(saved);
+
+        return game;
+    }
+
+    public applySaved(saved: SavedGame): void {
         this.active_words = [];
         this.last_turn = null;
         this.max_score = saved.max_score;
@@ -253,7 +319,7 @@ export default class Game {
             newTeam.index = team.index;
             newTeam.active_player_index = team.active_player_index;
             newTeam.players = team.players.map((player: any) => {
-                const newPlayer = new Player(player.name);
+                const newPlayer = new Player(player.name, player.id ?? '');
                 newPlayer.index = player.index;
 
                 return newPlayer;
@@ -277,7 +343,7 @@ export default class Game {
         return Game.readSaved() !== null && !this.is_restarted;
     }
 
-    public static readSaved(): any | null {
+    public static readSaved(): SavedGame | null {
         try {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
 

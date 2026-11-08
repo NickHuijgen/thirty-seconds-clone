@@ -7,6 +7,9 @@ const VERSION = '__VERSION__';
 const FILES = __FILES__;
 
 const CACHE_PREFIX = 'thirty-seconds-';
+
+// Relative to the site's base, like FILES
+const ONLINE_PATHS = ['api/', 'ws/'];
 const CACHE = `${CACHE_PREFIX}${VERSION}`;
 
 // The cache holds exactly this version's files, one copy each. `ignoreVary`, because servers that send
@@ -35,7 +38,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const request = event.request;
 
-    if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) {
+    const url = new URL(request.url);
+
+    if (request.method !== 'GET' || url.origin !== self.location.origin) {
+        return;
+    }
+
+    // Online play talks to the server directly, never to the stored files (a page load of /api/… would
+    // otherwise get index.html). WebSockets never reach a service worker; /ws/ is here to be explicit.
+    if (ONLINE_PATHS.some(path => url.pathname.startsWith(new URL(path, self.registration.scope).pathname))) {
         return;
     }
 

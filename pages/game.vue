@@ -13,6 +13,11 @@
         v-else-if="!game.is_finished"
         key="playing"
         :game="game"
+        :guessed="guessed"
+        @start-turn="game.startTurn()"
+        @end-turn="game.forceEndTurn()"
+        @toggle-word="toggleWord"
+        @finish-turn="finishTurn()"
     />
     <PostGame
         v-else
@@ -38,6 +43,9 @@ import { useTurnHaptics } from "~/composables/useTurnHaptics";
 
 const game = ref(new Game(50, words, loadSound));
 
+// The words ticked on the scoring screen, as indexes into active_words
+const guessed = ref<number[]>([]);
+
 useWakeLock(computed(() => game.value.is_in_progress && !game.value.is_finished));
 useTurnHaptics(game);
 
@@ -57,6 +65,17 @@ game.value.addTeam(team2);
 
 function restartGame(game: Game) {
   game.restart();
+}
+
+function toggleWord(index: number) {
+  guessed.value = guessed.value.includes(index)
+    ? guessed.value.filter(i => i !== index)
+    : [...guessed.value, index];
+}
+
+function finishTurn() {
+  game.value.finishTurn(guessed.value.length);
+  guessed.value = [];
 }
 
 function resumeGame() {

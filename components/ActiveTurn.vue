@@ -19,17 +19,22 @@
           <p class="truncate text-lg font-bold">
             {{ team.activePlayer()?.name }} omschrijft
           </p>
-          <p class="text-sm text-gray-500">
+          <p
+              v-if="isDescriber"
+              class="text-sm text-gray-500"
+          >
             Tik op de klok om te stoppen
           </p>
         </div>
 
-        <button
-            type="button"
+        <!-- Only the describer can end the turn; on the other phones the ring is just a clock -->
+        <component
+            :is="isDescriber ? 'button' : 'div'"
+            :type="isDescriber ? 'button' : undefined"
             class="relative shrink-0 rounded-full"
             :class="{ 'motion-safe:animate-urgent': urgency === 'urgent' }"
-            aria-label="Beëindig beurt"
-            @click="game.forceEndTurn()"
+            :aria-label="isDescriber ? 'Beëindig beurt' : undefined"
+            @click="isDescriber && emit('end-turn')"
         >
           <svg
               class="size-24"
@@ -57,7 +62,7 @@
                 :class="RING[urgency].text"
             >{{ game.turn_timer }}</text>
           </svg>
-        </button>
+        </component>
       </div>
 
       <p
@@ -67,8 +72,52 @@
         {{ countdownAnnouncement }}
       </p>
 
+      <!-- Online, the other phones never get the words during the turn. The describer's teammates
+           are told to guess; everyone else to keep quiet. -->
+      <div
+          v-if="!isDescriber && isGuesser"
+          class="flex flex-1 flex-col items-center justify-center text-center"
+      >
+        <span
+            class="material-icons text-7xl! motion-safe:animate-bounce-in"
+            :class="style.text"
+            aria-hidden="true"
+        >
+          record_voice_over
+        </span>
+        <p
+            class="mt-3 text-5xl font-extrabold motion-safe:animate-bounce-in"
+            :class="style.text"
+        >
+          Raad mee!
+        </p>
+        <p class="mt-3 text-lg font-semibold text-gray-600">
+          Roep de woorden die {{ team.activePlayer()?.name }} omschrijft
+        </p>
+      </div>
+      <div
+          v-else-if="!isDescriber"
+          class="flex flex-1 flex-col items-center justify-center text-center"
+      >
+        <span
+            class="material-icons text-7xl! text-gray-700 motion-safe:animate-bounce-in"
+            aria-hidden="true"
+        >
+          volume_off
+        </span>
+        <p class="mt-3 text-5xl font-extrabold text-gray-900 motion-safe:animate-bounce-in">
+          Ssst!
+        </p>
+        <p class="mt-3 text-lg font-semibold text-gray-600">
+          {{ team.name }} is aan de beurt, niet voorzeggen
+        </p>
+      </div>
+
       <!-- min-h-0 lets the cards shrink to fit short phones; the screen never scrolls -->
-      <ul class="mt-6 flex min-h-0 flex-1 flex-col gap-3">
+      <ul
+          v-else
+          class="mt-6 flex min-h-0 flex-1 flex-col gap-3"
+      >
         <li
             v-for="(word, index) in game.active_words"
             :key="index"
@@ -102,7 +151,18 @@ const props = defineProps({
     type: Game,
     required: true,
   },
+  isDescriber: {
+    type: Boolean,
+    default: true,
+  },
+  // Online: this phone belongs to one of the describer's teammates
+  isGuesser: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(['end-turn']);
 
 const RING = {
   calm: { stroke: 'stroke-green-500', text: 'fill-gray-800' },

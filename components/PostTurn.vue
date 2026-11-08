@@ -8,7 +8,7 @@
           Tijd is om!
         </h1>
         <p class="mt-1 text-gray-600">
-          Selecteer de woorden die geraden zijn
+          {{ canScore ? 'Selecteer de woorden die geraden zijn' : `${scorerName} telt de punten…` }}
         </p>
       </header>
 
@@ -19,14 +19,16 @@
             :key="index"
             class="flex min-h-0 flex-1"
         >
+          <!-- Online, the other phones watch the describer's ticks come in, read-only -->
           <button
               type="button"
-              class="flex min-h-0 w-full flex-1 items-center gap-3 rounded-2xl border-2 px-4 text-left shadow-sm transition-colors"
-              :class="selectedWords.includes(word)
+              class="flex min-h-0 w-full flex-1 items-center gap-3 rounded-2xl border-2 px-4 text-left shadow-sm transition-colors disabled:cursor-default"
+              :class="guessed.includes(index)
                 ? 'border-green-500 bg-green-100 motion-safe:animate-pop'
                 : 'border-transparent bg-white'"
-              :aria-pressed="selectedWords.includes(word)"
-              @click="toggleWordSelect(word)"
+              :aria-pressed="guessed.includes(index)"
+              :disabled="!canScore"
+              @click="emit('toggle-word', index)"
           >
             <span
                 class="material-icons shrink-0 text-gray-400"
@@ -38,7 +40,7 @@
             <span class="line-clamp-2 flex-1 text-[clamp(1.25rem,3.4dvh,1.5rem)] leading-snug font-bold break-words">{{ word }}</span>
             <span
                 class="material-icons shrink-0 text-green-700"
-                :class="selectedWords.includes(word) ? '' : 'invisible'"
+                :class="guessed.includes(index) ? '' : 'invisible'"
                 aria-hidden="true"
             >
               check_circle
@@ -47,21 +49,32 @@
         </li>
       </ul>
 
-      <template #action>
+      <template
+          v-if="canScore"
+          #action
+      >
         <ActionButton
             class="bg-emerald-700 text-white"
-            @click="game.finishTurn(selectedWords.length)"
+            @click="emit('finish-turn')"
         >
           Klaar
-          <span class="font-normal text-emerald-100">· {{ selectedWords.length }} geraden</span>
+          <span class="font-normal text-emerald-100">· {{ guessed.length }} geraden</span>
         </ActionButton>
+      </template>
+      <template
+          v-else
+          #action
+      >
+        <p class="flex h-14 items-center justify-center font-semibold text-gray-600">
+          {{ guessed.length }} geraden
+        </p>
       </template>
     </Screen>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import type { PropType } from "vue";
 import Game, { CATEGORIES } from "~/models/Game";
 import { PAGE_GREY } from "~/utils/teamColours";
 import Screen from "~/components/Screen.vue";
@@ -74,9 +87,23 @@ defineProps({
     type: Game,
     required: true,
   },
+  // Indexes into game.active_words that are ticked as guessed
+  guessed: {
+    type: Array as PropType<number[]>,
+    required: true,
+  },
+  // Online, only the describer (or the host in their place) ticks the words
+  canScore: {
+    type: Boolean,
+    default: true,
+  },
+  scorerName: {
+    type: String,
+    default: '',
+  },
 });
 
-const selectedWords = ref<string[]>([]);
+const emit = defineEmits<{ 'toggle-word': [index: number], 'finish-turn': [] }>();
 
 usePageColour(() => PAGE_GREY);
 
@@ -85,11 +112,4 @@ function categoryOf(index: number) {
   return CATEGORY_INFO[CATEGORIES[index]!];
 }
 
-function toggleWordSelect(word: string) {
-  if (selectedWords.value.includes(word)) {
-    selectedWords.value = selectedWords.value.filter((w) => w !== word);
-  } else {
-    selectedWords.value.push(word);
-  }
-}
 </script>

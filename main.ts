@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import App from './app.vue';
 import Index from './pages/index.vue';
 import GamePage from './pages/game.vue';
+import OnlinePage from './pages/online.vue';
 import './assets/css/main.css';
 
 const router = createRouter({
@@ -10,6 +11,8 @@ const router = createRouter({
     routes: [
         { path: '/', component: Index },
         { path: '/game', component: GamePage },
+        // /online/ABCD: a shareable link straight to a room
+        { path: '/online/:code?', component: OnlinePage },
         { path: '/:pathMatch(.*)*', redirect: '/' },
     ],
 });

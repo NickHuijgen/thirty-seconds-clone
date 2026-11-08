@@ -1,18 +1,29 @@
-// Cloudflare Worker that serves the built site (dist/). No server code: the Worker only has static
-// assets. Cloudflare's Git integration builds (`npm run verify`) and deploys (`npx wrangler deploy`)
-// every push to main.
+// Cloudflare Worker that serves the built site (dist/) and runs the online mode's rooms. Static files
+// never reach the Worker code: it only runs for /api/* and /ws/* (`run_worker_first`), with one Durable
+// Object per room (server/). Cloudflare's Git integration builds (`npm run verify`) and deploys
+// (`npx wrangler deploy`) every push to main.
 {
     "$schema": "node_modules/wrangler/config-schema.json",
     "name": "thirty-seconds-clone",
     "compatibility_date": "2026-11-01",
+    "main": "server/worker.ts",
     "assets": {
         "directory": "./dist",
         // Every page (/, /game/, anything else) gets index.html; the router takes it from there
         "not_found_handling": "single-page-application",
         // The default redirects /index.html to /. The service worker stores index.html to answer every
         // page, and browsers won't use a stored redirect for a page load, so that would break offline play.
-        "html_handling": "none"
+        "html_handling": "none",
+        // env.ASSETS in server/worker.ts, for anything it doesn't handle itself
+        "binding": "ASSETS",
+        // Only these run the Worker; everything else is a plain static-asset request
+        "run_worker_first": ["/api/*", "/ws/*"]
     },
+    "durable_objects": {
+        "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+    },
+    // SQLite-backed: the only kind of Durable Object on the Workers Free plan
+    "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
     "routes": [
         { "pattern": "thirty-seconds-clone.nickhuijgen.nl", "custom_domain": true }
     ]

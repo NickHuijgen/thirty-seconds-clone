@@ -265,6 +265,110 @@ test('the save holds only what loadSaved reads back', () => {
     assert.ok(!('words' in saved), 'the full word lists are not saved');
 });
 
+test('every player is saved with exactly its name, index and id', () => {
+    const game = newGame();
+    game.teams[0]!.players[0]!.id = 'online-id';
+    game.setUp();
+    playTurn(game, 1);
+
+    const saved = JSON.parse(storage.getItem(STORAGE_KEY)!);
+    for (const team of saved.teams) {
+        assert.deepEqual(Object.keys(team).sort(), ['active_player_index', 'colour', 'index', 'name', 'players', 'score']);
+        for (const player of team.players) {
+            assert.deepEqual(Object.keys(player).sort(), ['id', 'index', 'name']);
+        }
+    }
+
+    const resumed = newGame();
+    resumed.loadSaved();
+    const ids = resumed.teams.flatMap(t => t.players.map(p => p.id)).sort();
+    assert.deepEqual(ids, ['', '', '', 'online-id']);
+});
+
+test('saves from before player ids load with empty ids', () => {
+    const game = newGame();
+    game.setUp();
+    playTurn(game, 1);
+
+    const saved = JSON.parse(storage.getItem(STORAGE_KEY)!);
+    saved.teams.forEach((team: any) => team.players.forEach((player: any) => delete player.id));
+    storage.setItem(STORAGE_KEY, JSON.stringify(saved));
+
+    const resumed = newGame();
+    resumed.loadSaved();
+    assert.ok(resumed.teams.every(t => t.players.every(p => p.id === '')));
+    assert.equal(resumed.activeTeam().activePlayer()!.name, game.activeTeam().activePlayer()!.name);
+});
+
+test('toSaved and fromSaved round-trip without localStorage', () => {
+    const game = newGame({ teams: 3 });
+    game.setUp();
+    playTurn(game, 2);
+    playTurn(game, 4);
+
+    const copy = Game.fromSaved(JSON.parse(JSON.stringify(game.toSaved())), wordLists());
+    const shape = (g: Game) => ({
+        max_score: g.max_score,
+        active_team_index: g.active_team_index,
+        is_in_progress: g.is_in_progress,
+        is_finished: g.is_finished,
+        available: g.available,
+        teams: g.teams.map(t => [t.name, t.score, t.index, t.active_player_index, t.colour, t.players.map(p => [p.name, p.index, p.id])]),
+    });
+
+    assert.deepEqual(shape(copy), shape(game));
+    assert.equal(copy.activeTeam().activePlayer()!.name, game.activeTeam().activePlayer()!.name);
+    assert.equal(copy.turn_timer, 0);
+    assert.equal(copy.is_applying_score, false);
+    assert.deepEqual(copy.active_words, []);
+});
+
+test('fromSaved derives the winner, like loadSaved', () => {
+    const game = newGame({ maxScore: 3 });
+    game.setUp();
+    playTurn(game, 3);
+
+    const copy = Game.fromSaved(game.toSaved(), wordLists());
+    assert.equal(copy.is_finished, true);
+    assert.equal(copy.winning_team?.name, game.winning_team?.name);
+});
+
+test('beginTurn deals the words without sounds or a timer, for the server', (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const { loadSound, played } = recordingSounds();
+    const game = newGame({ loadSound });
+    game.setUp();
+
+    game.beginTurn();
+    assert.equal(game.active_words.length, 5);
+    assert.equal(game.turn_timer, TURN_SECONDS);
+    assert.equal(game.interval, undefined);
+
+    t.mock.timers.tick(TURN_SECONDS * 1000);
+    assert.equal(game.turn_timer, TURN_SECONDS, 'nothing counts down');
+    assert.deepEqual(played, []);
+
+    game.endTurn();
+    assert.equal(game.turn_timer, 0);
+    assert.equal(game.is_applying_score, true);
+    assert.deepEqual(played, []);
+});
+
+test('scoreTurn scores without saving; finishTurn still saves', () => {
+    const game = newGame();
+    game.setUp();
+    game.beginTurn();
+    game.endTurn();
+    game.scoreTurn(2);
+
+    assert.equal(storage.getItem(STORAGE_KEY), null);
+    assert.equal(game.teams.reduce((n, t) => n + t.score, 0), 2);
+    assert.equal(game.is_applying_score, false);
+
+    playTurn(game, 1);
+    assert.notEqual(storage.getItem(STORAGE_KEY), null);
+});
+
 test('Game.emptyWordLists has every category', () => {
     assert.deepEqual(Object.keys(Game.emptyWordLists()).sort(), [...CATEGORIES].sort());
 });

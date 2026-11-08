@@ -22,7 +22,12 @@
         <Leaderboard :game="game" />
       </div>
 
-      <template #action>
+      <slot />
+
+      <template
+          v-if="canRestart"
+          #action
+      >
         <ActionButton
             class="bg-white"
             :class="style.text"
@@ -30,6 +35,14 @@
         >
           Begin opnieuw
         </ActionButton>
+      </template>
+      <template
+          v-else
+          #action
+      >
+        <p class="flex h-14 items-center justify-center font-semibold text-white/80">
+          Wachten tot de host opnieuw begint…
+        </p>
       </template>
     </Screen>
   </div>
@@ -49,6 +62,11 @@ const props = defineProps({
   game: {
     type: Game,
     required: true,
+  },
+  // Online, only the host starts a new game
+  canRestart: {
+    type: Boolean,
+    default: true,
   },
 });
 
