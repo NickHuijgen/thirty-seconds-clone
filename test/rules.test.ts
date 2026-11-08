@@ -506,8 +506,8 @@ test('a team with fewer than 2 players stops while the game goes on; whoever is 
     assert.equal(teamNameOf(room, describerId(room)!), up, 'the team that was up still is');
     assert.equal(phase(room, T0), 'pre-turn');
 
-    // The host can give them a seat in another team
-    send(room, 'p1', { type: 'assignPlayer', playerId: remaining, teamIndex: 0 });
+    // The host (who may have changed, if the host was the one leaving) can seat them in another team
+    send(room, room.host_id!, { type: 'assignPlayer', playerId: remaining, teamIndex: 0 });
     assert.ok(teamNameOf(room, remaining));
 });
 
