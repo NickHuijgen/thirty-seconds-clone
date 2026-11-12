@@ -637,8 +637,7 @@ reduced motion the change is simply instant.
 
 Not fixed yet. Ask before fixing as a side effect of something else.
 
-- `public/robots.txt` is empty (allows everything — fine, but it's a
-  placeholder).
+None at the moment.
 
 ## Hosting
 
@@ -656,6 +655,12 @@ off without a redirect.
 content-hashed files in `assets/` for a year; everything else is
 revalidated on every load, which `sw.js` relies on to pick up a new
 version.
+
+The site is kept out of search results with a noindex: an
+`X-Robots-Tag: noindex` header on every path (`public/_headers`) and a
+`<meta name="robots">` in `index.html`. `robots.txt` allows crawling on
+purpose — it has no noindex of its own, and a `Disallow` would stop
+crawlers from ever seeing the noindex.
 
 `dist/` is the build output and is gitignored. `npm audit` was clean
 after the move to Vite (October 2026); keep it that way.

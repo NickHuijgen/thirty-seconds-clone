@@ -5,3 +5,7 @@
 # always gets a new URL: browsers may keep these for a year without asking again.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Keep the game out of search results. Also in index.html as a meta tag.
+/*
+  X-Robots-Tag: noindex

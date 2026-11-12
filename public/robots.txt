@@ -1,1 +1,6 @@
-
+# The game shouldn't show up in search results. That's done with a noindex
+# (the X-Robots-Tag header in _headers and the robots meta tag in index.html),
+# not here: robots.txt has no noindex, and disallowing crawling would stop
+# search engines from ever seeing the noindex.
+User-agent: *
+Allow: /
