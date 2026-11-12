@@ -42,7 +42,7 @@
             v-if="(describer && !describer.connected) || (isHost && spectators.length > 0)"
             class="mt-6 space-y-4"
         >
-          <p
+          <div
               v-if="describer && !describer.connected"
               class="rounded-2xl bg-white/10 p-4 font-semibold"
           >
@@ -52,12 +52,18 @@
               <button
                   type="button"
                   class="mt-3 flex h-11 items-center rounded-xl bg-white px-4 font-semibold text-gray-900"
-                  @click="send({ type: 'kick', playerId: describer.id })"
+                  @click="confirmKickDescriber?.open()"
               >
                 Haal {{ describer.name }} uit het spel
               </button>
+              <ConfirmDialog
+                  ref="confirmKickDescriber"
+                  :message="`${describer.name} doet dan niet meer mee aan dit spel.`"
+                  confirm-label="Verwijderen"
+                  @confirm="send({ type: 'kick', playerId: describer.id })"
+              />
             </template>
-          </p>
+          </div>
 
           <!-- New players join as spectators; the host gives them a seat -->
           <div
@@ -144,6 +150,7 @@ import OnlineJoin from "~/components/OnlineJoin.vue";
 import OnlineLobby from "~/components/OnlineLobby.vue";
 import MemberRow from "~/components/MemberRow.vue";
 import LeaveButton from "~/components/LeaveButton.vue";
+import ConfirmDialog from "~/components/ConfirmDialog.vue";
 import Playing from "~/components/Playing.vue";
 import PostGame from "~/components/PostGame.vue";
 import { createRoom, readSession, useOnlineGame } from "~/composables/useOnlineGame";
@@ -158,6 +165,7 @@ const router = useRouter();
 const { state, game, playerId, status, error, isHost, isDescriber, connect, send, leave, showError } = useOnlineGame();
 
 const busy = ref(false);
+const confirmKickDescriber = ref<InstanceType<typeof ConfirmDialog> | null>(null);
 const routeCode = computed(() => normaliseCode(String(route.params.code ?? '')));
 const savedName = readSession()?.name ?? '';
 

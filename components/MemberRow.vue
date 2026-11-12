@@ -45,7 +45,7 @@
           v-if="!isYou"
           :can-remove="true"
           :label="`Haal ${member.name} uit de lobby`"
-          @click="emit('kick', member.id)"
+          @click="confirmKick?.open()"
       />
       <!-- The host can't remove themselves; keep the button's space so every select lines up -->
       <span
@@ -53,12 +53,20 @@
           class="size-10 shrink-0"
           aria-hidden="true"
       />
+      <ConfirmDialog
+          v-if="!isYou"
+          ref="confirmKick"
+          :message="`${member.name} wordt uit de lobby gehaald.`"
+          confirm-label="Verwijderen"
+          @confirm="emit('kick', member.id)"
+      />
     </template>
   </li>
 </template>
 
 <script setup lang="ts">
-import { computed, useId, type PropType } from "vue";
+import { computed, ref, useId, type PropType } from "vue";
+import ConfirmDialog from "~/components/ConfirmDialog.vue";
 import RemoveButton from "~/components/RemoveButton.vue";
 import type { MemberView } from "~/server/protocol";
 import type { SavedGame } from "~/models/Game";
@@ -99,6 +107,7 @@ const props = defineProps({
 const emit = defineEmits<{ assign: [playerId: string, teamIndex: number | null], kick: [playerId: string] }>();
 
 const selectId = useId();
+const confirmKick = ref<InstanceType<typeof ConfirmDialog> | null>(null);
 
 // " (jij) · host · weg", built as one string so the spacing doesn't depend on template whitespace
 const tags = computed(() => {

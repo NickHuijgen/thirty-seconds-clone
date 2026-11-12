@@ -386,10 +386,12 @@ screen straight away; the server's state follows within moments.
 
 Losing the connection keeps a seat; leaving gives it up. "Verlaat lobby"
 (`LeaveButton.vue`: small and muted, and it asks "Weet je het zeker?" in
-a `<dialog>` first) sends `leave` before closing, and the server takes
-the player out right away — `removeMember()` in `server/rules.ts`, the
-same as the host removing someone. **The game never waits for someone
-who left:**
+a `<dialog>` first, `ConfirmDialog.vue`) sends `leave` before closing,
+and the server takes the player out right away — `removeMember()` in
+`server/rules.ts`, the same as the host removing someone. Removing
+someone asks first too: the host's ✕ in the member list and "Haal …
+uit het spel" open the same `ConfirmDialog.vue`. **The game never waits
+for someone who left:**
 
 - **First: can the game go on?** Counting only teams that still have
   at least 2 players (`MIN_TEAM_SIZE`): with fewer than 2 such teams or
