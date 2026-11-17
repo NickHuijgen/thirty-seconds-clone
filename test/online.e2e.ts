@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TURN_SECONDS } from '../models/Game.ts';
-import { CLOSE_KICKED, CLOSE_ROOM_GONE, type ClientMessage, type RoomView, type ServerMessage } from '../server/protocol.ts';
+import { CLOSE_KICKED, CLOSE_ROOM_GONE, REVIEW_SECONDS, type ClientMessage, type RoomView, type ServerMessage } from '../server/protocol.ts';
 import { clockOffset, type ClockSample } from '../utils/clock.ts';
 
 const BASE = process.argv.find(arg => /^https?:\/\//.test(arg)) ?? 'http://localhost:5173';
@@ -108,6 +108,9 @@ class Phone {
         this.ws.close();
     }
 }
+
+// Waiting for a turn to count: the review after "Klaar" runs first, unless it was vetoed
+const REVIEW_WAIT = REVIEW_SECONDS * 1000 + 3000;
 
 async function newRoom(): Promise<string> {
     const response = await fetch(`${BASE}/api/rooms`, { method: 'POST' });
@@ -259,7 +262,7 @@ test('four phones play a game online', { timeout: 120_000 }, async (t) => {
         await Promise.all(phones.map(p => p.until(() => p.state!.vetoed && p.state!.review_ends_at === null, 'vetoed')));
         await Promise.all(phones.map(p => p.until(() => p.errors().includes(`${opponent.name} heeft een veto ingediend`), 'the veto notice')));
         describer.send({ type: 'finishTurn', turn });
-        await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn')));
+        await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn', REVIEW_WAIT)));
         assert.deepEqual(anna.state!.last_turn?.words, words);
         assert.deepEqual(anna.state!.last_turn?.guessed, [0, 2]);
         assert.equal(anna.state!.last_turn?.score, 2);
@@ -277,7 +280,7 @@ test('four phones play a game online', { timeout: 120_000 }, async (t) => {
             describer.send({ type: 'endTurnEarly', turn });
             await Promise.all(phones.map(p => p.until(() => p.state!.is_applying_score && p.state!.turn === turn, 'ended early')));
             describer.send({ type: 'finishTurn', turn });
-            await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next')));
+            await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next', REVIEW_WAIT)));
         }
         assert.equal(seen.size, 3, 'the remaining three players each had a turn');
     });
@@ -350,7 +353,7 @@ test('a player leaving never stalls the game; below 4 players it stops', { timeo
     teammate.send({ type: 'endTurnEarly', turn });
     await teammate.until(() => teammate.state!.is_applying_score, 'scoring');
     teammate.send({ type: 'finishTurn', turn });
-    await Promise.all(present.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn')));
+    await Promise.all(present.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn', REVIEW_WAIT)));
 
     // The other team's describer leaves mid-turn: that turn doesn't count, back to the first team
     const other = describerOf(present);
@@ -370,6 +373,60 @@ test('a player leaving never stalls the game; below 4 players it stops', { timeo
     // The notice follows the new state
     await Promise.all(present.map(p => p.until(() => p.messages.slice(before.get(p))
         .some(m => m.type === 'error' && m.message === 'Het spel is gestopt: minder dan 4 spelers'), 'notice')));
+});
+
+test('three phones play a trio: three pairs, the one sitting out vetoes, and leaving stops it', { timeout: 60_000 }, async (t) => {
+    const code = await newRoom();
+    const phones = ['Anna', 'Bram', 'Cas'].map(name => new Phone(name));
+    t.after(() => phones.forEach(phone => phone.close()));
+    for (const phone of phones) {
+        await phone.connect(code);
+    }
+    const [anna] = phones as [Phone];
+    await anna.until(() => anna.state!.members.length === 3, '3 members');
+
+    // No teams to share out: the host just starts
+    anna.send({ type: 'start' });
+    await Promise.all(phones.map(p => p.until(() => !!p.state?.game.is_in_progress, 'started')));
+    assert.equal(anna.state!.game.mode, 'trio');
+    assert.equal(anna.state!.game.teams.length, 3);
+
+    const describers: string[] = [];
+    for (let i = 0; i < 3; i++) {
+        const describer = describerOf(phones);
+        describers.push(describer.name);
+        const active = describer.state!.game.teams.find(team => team.index === describer.state!.game.active_team_index)!;
+        const guesser = phones.find(p => p !== describer && active.players.some(x => x.id === p.playerId))!;
+        const third = phones.find(p => p !== describer && p !== guesser)!;
+        const turn = describer.state!.turn;
+
+        describer.send({ type: 'startTurn', turn });
+        await describer.until(() => describer.state!.ends_at !== null, 'started');
+        describer.send({ type: 'endTurnEarly', turn });
+        await describer.until(() => describer.state!.is_applying_score, 'scoring');
+        describer.send({ type: 'setWord', turn, index: 0, guessed: true });
+        describer.send({ type: 'finishTurn', turn });
+        await Promise.all(phones.map(p => p.until(() => p.state!.review_ends_at !== null, 'review')));
+
+        if (i === 0) {
+            // The guesser can't veto; the one sitting out can
+            guesser.send({ type: 'veto', turn });
+            third.send({ type: 'veto', turn });
+            await Promise.all(phones.map(p => p.until(() => p.state!.vetoed, 'vetoed')));
+            assert.ok(guesser.errors().every(e => !e.startsWith(guesser.name)), 'the guesser\'s veto was ignored');
+            describer.send({ type: 'finishTurn', turn });
+        }
+        await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn', REVIEW_WAIT)));
+    }
+    assert.equal(new Set(describers).size, 3, 'everyone described once in the first three turns');
+
+    // Someone leaves: a trio needs everyone, so back to the lobby
+    const leaver = phones.find(p => p !== hostOf(phones))!;
+    leaver.send({ type: 'leave' });
+    const rest = phones.filter(p => p !== leaver);
+    await Promise.all(rest.map(p => p.until(() => !p.state!.game.is_in_progress && p.state!.members.length === 2, 'back to the lobby')));
+    await Promise.all(rest.map(p => p.until(() => p.errors().includes(`Het spel is gestopt: ${leaver.name} doet niet meer mee`), 'notice')));
+    assert.equal(rest[0]!.state!.game.mode, 'teams');
 });
 
 test('a room that does not exist', async () => {

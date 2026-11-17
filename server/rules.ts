@@ -4,7 +4,7 @@
 import Game, { TURN_SECONDS, type LastTurn, type SavedGame, type WordLists } from '../models/Game.ts';
 import Team from '../models/Team.ts';
 import Player from '../models/Player.ts';
-import { MAX_MEMBERS, MAX_NAME_LENGTH, REVIEW_GRACE, REVIEW_SECONDS, type ClientMessage, type RoomView, type ServerMessage } from './protocol.ts';
+import { MAX_MEMBERS, MAX_NAME_LENGTH, playsWithoutTeams, REVIEW_GRACE, REVIEW_SECONDS, type ClientMessage, type RoomView, type ServerMessage } from './protocol.ts';
 
 // A room is deleted this long after anything last happened in it, like a saved game on one phone
 export const ROOM_LIFETIME = 4 * 60 * 60 * 1000;
@@ -66,8 +66,7 @@ function fail(error: string): Result {
 
 export function createRoom(code: string, now: number, words: WordLists): RoomData {
     const game = new Game(25, words);
-    game.addTeam(new Team('Team 1'));
-    game.addTeam(new Team('Team 2'));
+    resetTeams(game);
 
     return {
         code,
@@ -84,6 +83,14 @@ export function createRoom(code: string, now: number, words: WordLists): RoomDat
         review_ends_at: null,
         vetoed: false,
     };
+}
+
+// Two empty teams for the host to fill: a new room, and the lobby after a duo or trio
+function resetTeams(game: Game): void {
+    game.mode = 'teams';
+    game.teams = [];
+    game.addTeam(new Team('Team 1'));
+    game.addTeam(new Team('Team 2'));
 }
 
 // The room's game as a Game object, with everything the local save leaves out put back
@@ -168,11 +175,13 @@ function scoreTurn(room: RoomData, words: WordLists): void {
     room.vetoed = false;
 }
 
-// Anyone playing in a team other than the one that's up
+// Anyone playing who isn't in the team that's up. (In a trio everyone is in two teams: the one sitting
+// the turn out vetoes.) Never in a duo: the only other player is the guesser.
 export function canVeto(room: RoomData, playerId: string): boolean {
-    const team = room.game.teams.find(t => t.players.some(p => p.id === playerId));
+    const active = room.game.teams.find(t => t.index === room.game.active_team_index);
+    const seated = room.game.teams.some(t => t.players.some(p => p.id === playerId));
 
-    return !!team && team.index !== room.game.active_team_index;
+    return room.game.mode !== 'duo' && seated && !!active && !active.players.some(p => p.id === playerId);
 }
 
 export function describerId(room: RoomData): string | null {
@@ -359,15 +368,20 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
                 return NONE;
             }
             const game = loadGame(room, words);
-            // Teams nobody was put in just don't play
-            const playing = game.teams.filter(team => team.players.length > 0);
-            if (playing.length < 2) {
-                return fail('Zet spelers in minstens 2 teams');
+            if (playsWithoutTeams(room.members.length)) {
+                // Two or three people: everyone plays, in the teams the mode makes
+                game.setPlayers(room.members.map(m => new Player(m.name, m.id)));
+            } else {
+                // Teams nobody was put in just don't play
+                const playing = game.teams.filter(team => team.players.length > 0);
+                if (playing.length < 2) {
+                    return fail('Zet spelers in minstens 2 teams');
+                }
+                if (playing.some(team => team.players.length < 2)) {
+                    return fail('Elk team heeft minstens 2 spelers nodig');
+                }
+                game.teams = playing;
             }
-            if (playing.some(team => team.players.length < 2)) {
-                return fail('Elk team heeft minstens 2 spelers nodig');
-            }
-            game.teams = playing;
             // setUp shuffles the teams and players and deals the word lists. Its clearSaved() finds no
             // localStorage on the server and does nothing.
             game.setUp();
@@ -387,6 +401,10 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             }
             const game = loadGame(room, words);
             game.restart();
+            // A duo or trio is made again at the start, from whoever is in the room by then
+            if (game.mode !== 'teams') {
+                resetTeams(game);
+            }
             storeGame(room, game);
             room.ends_at = null;
             room.guessed = [];
@@ -443,7 +461,8 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             if (current !== 'scoring' || message.turn !== room.turn || !canScore(room, playerId)) {
                 return NONE;
             }
-            if (room.vetoed) {
+            // Straight to the score after a veto, or when nobody could veto (a duo)
+            if (room.vetoed || !room.members.some(m => canVeto(room, m.id))) {
                 scoreTurn(room, words);
             } else {
                 room.review_ends_at = now + REVIEW_SECONDS * 1000 + REVIEW_GRACE;
@@ -480,6 +499,10 @@ function assignPlayer(room: RoomData, isHost: boolean, targetId: string, teamInd
 
     if ((teamIndex !== null && !to) || from === to) {
         return NONE;
+    }
+
+    if (game.mode !== 'teams') {
+        return fail('Bij 2 of 3 spelers kan er pas in het volgende spel iemand bij');
     }
 
     if (current === 'lobby') {
@@ -529,6 +552,20 @@ function removeMember(room: RoomData, targetId: string, current: Phase, words: W
     const betweenGames = current === 'lobby' || current === 'finished';
     let notice: string | null = null;
 
+    // A duo or trio needs everyone: back to the lobby, to start again with whoever is left
+    if (team && !betweenGames && game.mode !== 'teams') {
+        const name = room.members.find(m => m.id === targetId)?.name ?? 'Iemand';
+        game.restart();
+        resetTeams(game);
+        storeGame(room, game);
+        room.ends_at = null;
+        room.guessed = [];
+        room.review_ends_at = null;
+        room.vetoed = false;
+
+        return finishRemoval(room, targetId, `Het spel is gestopt: ${name} doet niet meer mee`);
+    }
+
     if (team && !betweenGames) {
         const isActiveTeam = team.index === game.active_team_index;
         const running = current === 'turn' || current === 'scoring' || current === 'review';
@@ -574,7 +611,8 @@ function removeMember(room: RoomData, targetId: string, current: Phase, words: W
             // The team's next player is already up (removeFromTeam), so only the team moves on
             game.active_team_index = (game.active_team_index + 1) % game.teams.length;
         }
-    } else if (team) {
+    } else if (team && game.mode === 'teams') {
+        // (After a duo or trio the winner screen keeps its teams; "Begin opnieuw" resets them)
         removeFromTeam(team, targetId, true);
     }
 

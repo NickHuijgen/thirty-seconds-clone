@@ -26,7 +26,13 @@
       </header>
 
       <p class="mb-6 text-gray-700">
-        <template v-if="isHost">
+        <template v-if="withoutTeams">
+          {{ state.members.length === 2
+            ? 'Met z\'n tweeën: om de beurt leg je uit en raadt de ander. Je scoort met je eigen beurten.'
+            : 'Met z\'n drieën: jullie spelen in drie duo\'s, elk met een eigen score. Wie niet meedoet is even stil.' }}
+          Met 4 of meer spelen jullie in teams.
+        </template>
+        <template v-else-if="isHost">
           Jij bent de host. Zet iedereen in een team en begin het spel.
         </template>
         <template v-else>
@@ -34,7 +40,37 @@
         </template>
       </p>
 
-      <section aria-labelledby="online-teams-heading">
+      <!-- Two or three people: no teams to share out, everyone plays -->
+      <section
+          v-if="withoutTeams"
+          aria-labelledby="online-players-heading"
+      >
+        <h2
+            id="online-players-heading"
+            class="mb-3 text-lg font-bold"
+        >
+          Spelers
+        </h2>
+        <ul class="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
+          <MemberRow
+              v-for="member in state.members"
+              :key="member.id"
+              :member="member"
+              :teams="state.game.teams"
+              :team-index="null"
+              :is-host="isHost"
+              :is-you="member.id === playerId"
+              :host-id="state.host_id"
+              :show-team="false"
+              @kick="target => emit('send', { type: 'kick', playerId: target })"
+          />
+        </ul>
+      </section>
+
+      <section
+          v-else
+          aria-labelledby="online-teams-heading"
+      >
         <h2
             id="online-teams-heading"
             class="mb-3 text-lg font-bold"
@@ -122,7 +158,7 @@
       </section>
 
       <section
-          v-if="waiting.length > 0"
+          v-if="!withoutTeams && waiting.length > 0"
           class="mt-8"
           aria-labelledby="online-waiting-heading"
       >
@@ -213,7 +249,7 @@ import ActionButton from "~/components/ActionButton.vue";
 import RemoveButton from "~/components/RemoveButton.vue";
 import MemberRow from "~/components/MemberRow.vue";
 import LeaveButton from "~/components/LeaveButton.vue";
-import { MAX_NAME_LENGTH, type ClientMessage, type MemberView, type RoomView } from "~/server/protocol";
+import { MAX_NAME_LENGTH, playsWithoutTeams, type ClientMessage, type MemberView, type RoomView } from "~/server/protocol";
 import { usePageColour } from "~/composables/usePageColour";
 import { PAGE_SETUP, TEAM_STYLES } from "~/utils/teamColours";
 
@@ -240,6 +276,8 @@ const id = useId();
 const copied = ref(false);
 
 usePageColour(() => PAGE_SETUP);
+
+const withoutTeams = computed(() => playsWithoutTeams(props.state.members.length));
 
 const hostName = computed(() => props.state.members.find(m => m.id === props.state.host_id)?.name ?? 'De host');
 

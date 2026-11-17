@@ -16,12 +16,14 @@
 
     <template v-if="isHost">
       <label
+          v-if="showTeam"
           :for="selectId"
           class="sr-only"
       >
         Team van {{ member.name }}
       </label>
       <select
+          v-if="showTeam"
           :id="selectId"
           :value="teamIndex ?? ''"
           class="h-11 w-36 shrink-0 truncate rounded-xl border-2 bg-white px-2 font-semibold"
@@ -99,6 +101,11 @@ const props = defineProps({
   },
   // In the lobby a player can go back to having no team; during a game a seat can only be filled
   allowUnassign: {
+    type: Boolean,
+    default: true,
+  },
+  // Without teams (2 or 3 people), only the host's remove button
+  showTeam: {
     type: Boolean,
     default: true,
   },

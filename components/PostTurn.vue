@@ -160,7 +160,12 @@ const reviewing = computed(() => props.reviewLeft !== null);
 
 const subtitle = computed(() => {
   if (reviewing.value) {
-    return props.canVeto ? 'Niet eens met de punten? Geef een veto.' : 'De andere teams kunnen nog een veto geven…';
+    if (props.canVeto) {
+      return 'Niet eens met de punten? Geef een veto.';
+    }
+
+    // In a trio only the player sitting the turn out can veto
+    return props.game.mode === 'trio' ? 'Wie niet meedeed kan nog een veto geven…' : 'De andere teams kunnen nog een veto geven…';
   }
   if (props.vetoed) {
     return props.canScore

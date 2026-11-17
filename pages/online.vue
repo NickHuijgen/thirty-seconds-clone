@@ -43,7 +43,7 @@
     >
       <template #pre-turn-top>
         <div
-            v-if="(describer && !describer.connected) || (isHost && spectators.length > 0)"
+            v-if="(describer && !describer.connected) || (isHost && canSeat && spectators.length > 0)"
             class="mt-6 space-y-4"
         >
           <div
@@ -71,7 +71,7 @@
 
           <!-- New players join as spectators; the host gives them a seat -->
           <div
-              v-if="isHost && spectators.length > 0"
+              v-if="isHost && canSeat && spectators.length > 0"
               class="rounded-2xl bg-white p-4 text-gray-900 shadow-lg"
           >
             <h2 class="mb-3 font-bold">
@@ -101,7 +101,7 @@
               v-if="isSpectator"
               class="font-semibold text-white/80"
           >
-            Je kijkt mee. De host kan je in een team zetten.
+            {{ canSeat ? 'Je kijkt mee. De host kan je in een team zetten.' : 'Je kijkt mee en doet mee in het volgende spel.' }}
           </p>
           <LeaveButton
               class="mt-2 self-center text-white"
@@ -185,19 +185,16 @@ const seated = computed(() => new Set(state.value?.game.teams.flatMap(team => te
 const spectators = computed(() => state.value?.members.filter(m => !seated.value.has(m.id) && m.connected) ?? []);
 const isSpectator = computed(() => !!playerId.value && !seated.value.has(playerId.value));
 
-// Everyone in another team may veto the ticks while the review after "Klaar" runs (the server checks the same)
-const canVeto = computed(() => {
-  const team = state.value?.game.teams.find(t => t.players.some(p => p.id === playerId.value));
+// A duo or trio needs everyone from the start: newcomers wait for the next game
+const canSeat = computed(() => game.value.mode === 'teams');
 
-  return !!reviewLeft.value && !!team && team.index !== state.value?.game.active_team_index;
-});
+// Everyone playing outside the team that's up may veto the ticks while the review after "Klaar" runs;
+// in a trio, that's whoever sits the turn out (the server checks the same, and skips a duo's review)
+const canVeto = computed(() => !!reviewLeft.value && !isSpectator.value
+  && !game.value.activeTeam()?.players.some(p => p.id === playerId.value));
 
-// The describer's teammates: they're the ones guessing
-const isGuesser = computed(() => {
-  const team = game.value.activeTeam();
-
-  return !isDescriber.value && !!team?.players.some(p => p.id === playerId.value);
-});
+// Whoever may guess: the describer's teammates, or in a duo the other player
+const isGuesser = computed(() => game.value.guessers().some(p => p.id === playerId.value));
 
 // Only the describer's phone plays the sounds (see AGENTS.md). Loaded in the "Start beurt" tap, because
 // mobile browsers only play audio that a tap started; the time-up boom plays later from the countdown.

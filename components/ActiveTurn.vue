@@ -110,7 +110,7 @@
           Ssst!
         </p>
         <p class="mt-3 text-lg font-semibold text-gray-600">
-          {{ team.name }} is aan de beurt, niet voorzeggen
+          {{ team.name }} {{ game.mode === 'trio' ? 'zijn' : 'is' }} aan de beurt, niet voorzeggen
         </p>
       </div>
 

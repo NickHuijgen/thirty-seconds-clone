@@ -753,3 +753,131 @@ test('the room state survives a round trip through storage', () => {
     assert.equal(describerId(stored), describer);
     assert.deepEqual(wordsMessages(messagesFor(stored, describer, T0 + 1000)), wordsMessages(messagesFor(room, describer, T0 + 1000)));
 });
+
+// Two or three people in the room, started: a duo or trio
+function smallRoom(names: string[]): RoomData {
+    const room = roomWith(names);
+    assert.deepEqual(send(room, 'p1', { type: 'start' }), { changed: true });
+
+    return room;
+}
+
+// Plays one turn: start, stop, tick `ticks`, "Klaar", and through the review if there is one
+function playOnline(room: RoomData, ticks = 0) {
+    const describer = describerId(room)!;
+    send(room, describer, { type: 'startTurn', turn: room.turn });
+    send(room, describer, { type: 'endTurnEarly', turn: room.turn });
+    for (let i = 0; i < ticks; i++) {
+        send(room, describer, { type: 'setWord', turn: room.turn, index: i, guessed: true });
+    }
+    finish(room, describer);
+
+    return describer;
+}
+
+test('two or three people start a duo or trio without teams; one alone still needs teams', () => {
+    assert.equal(send(roomWith(['Anna']), 'p1', { type: 'start' }).error, 'Zet spelers in minstens 2 teams');
+
+    const duo = smallRoom(['Anna', 'Bram']);
+    assert.equal(duo.game.mode, 'duo');
+    assert.deepEqual(duo.game.teams.map(t => t.players.map(p => p.id)).sort(), [['p1'], ['p2']]);
+
+    const trio = smallRoom(['Anna', 'Bram', 'Cas']);
+    assert.equal(trio.game.mode, 'trio');
+    assert.equal(trio.game.teams.length, 3);
+    for (const id of ['p1', 'p2', 'p3']) {
+        assert.equal(trio.game.teams.filter(t => t.players.some(p => p.id === id)).length, 2, `${id} is in two pairs`);
+    }
+
+    // Four people: teams, as the host made them
+    const four = startedRoom();
+    assert.equal(four.game.mode, 'teams');
+});
+
+test('a duo: the two take turns, the describer scores, and Klaar counts straight away', () => {
+    const room = smallRoom(['Anna', 'Bram']);
+    assert.ok(room.members.every(m => !canVeto(room, m.id)), 'nobody can veto in a duo');
+
+    const first = playOnline(room, 2);
+    assert.equal(phase(room, T0), 'pre-turn', 'no review');
+    assert.equal(room.game.teams.find(t => t.players[0]!.id === first)!.score, 2);
+
+    const second = playOnline(room, 1);
+    assert.notEqual(second, first);
+    assert.equal(playOnline(room), first);
+});
+
+test('a trio: everyone describes in turn, and only the one sitting out vetoes', () => {
+    const room = smallRoom(['Anna', 'Bram', 'Cas']);
+    const describers: string[] = [];
+
+    for (let i = 0; i < 6; i++) {
+        const describer = describerId(room)!;
+        const active = room.game.teams.find(t => t.index === room.game.active_team_index)!;
+        const guesser = active.players.find(p => p.id !== describer)!.id;
+        const third = ['p1', 'p2', 'p3'].find(id => id !== describer && id !== guesser)!;
+        describers.push(describer);
+
+        assert.deepEqual(['p1', 'p2', 'p3'].filter(id => canVeto(room, id)), [third], `turn ${i}`);
+
+        send(room, describer, { type: 'startTurn', turn: room.turn });
+        send(room, describer, { type: 'endTurnEarly', turn: room.turn });
+        send(room, describer, { type: 'finishTurn', turn: room.turn }, T0 + 1000);
+        assert.equal(phase(room, T0 + 1000), 'review');
+        assert.deepEqual(send(room, guesser, { type: 'veto', turn: room.turn }, T0 + 1500), { changed: false });
+        if (i === 0) {
+            assert.equal(send(room, third, { type: 'veto', turn: room.turn }, T0 + 1500).changed, true);
+            send(room, describer, { type: 'finishTurn', turn: room.turn }, T0 + 2000);
+        } else {
+            settle(room, room.review_ends_at!, words);
+        }
+    }
+
+    assert.ok(describers.every((d, i) => i === 0 || d !== describers[i - 1]), 'nobody describes twice in a row');
+    assert.deepEqual([...describers].sort(), ['p1', 'p1', 'p2', 'p2', 'p3', 'p3']);
+});
+
+test('someone leaving a duo or trio stops the game; a newcomer only watches until the next one', () => {
+    for (const names of [['Anna', 'Bram'], ['Anna', 'Bram', 'Cas']]) {
+        const room = smallRoom(names);
+        playOnline(room, 1);
+
+        join(room, 'Eva', undefined, T0, () => 'p9');
+        assert.equal(send(room, room.host_id!, { type: 'assignPlayer', playerId: 'p9', teamIndex: 0 }).error,
+            'Bij 2 of 3 spelers kan er pas in het volgende spel iemand bij');
+        assert.deepEqual(send(room, 'p9', { type: 'leave' }), { changed: true, left: 'p9', notice: undefined }, 'a watcher leaving changes nothing');
+        assert.equal(phase(room, T0), 'pre-turn');
+
+        const result = send(room, 'p2', { type: 'leave' });
+        assert.equal(result.notice, 'Het spel is gestopt: Bram doet niet meer mee');
+        assert.equal(phase(room, T0), 'lobby');
+        assert.equal(room.game.mode, 'teams');
+        assert.deepEqual(room.game.teams.map(t => [t.name, t.players.length]), [['Team 1', 0], ['Team 2', 0]]);
+
+        // Whoever is left can start again: a duo, or nothing for one person alone
+        const again = send(room, room.host_id!, { type: 'start' });
+        assert.equal(names.length === 3 ? again.changed : !!again.error, true);
+    }
+});
+
+test('"Begin opnieuw" after a duo or trio: back to the lobby, made again from whoever is there', () => {
+    const room = roomWith(['Anna', 'Bram', 'Cas']);
+    room.game.max_score = 10;
+    send(room, 'p1', { type: 'start' });
+    while (phase(room, T0) !== 'finished') {
+        playOnline(room, 5);
+    }
+    assert.match(room.game.teams.find(t => t.score >= 10)!.name, / & /);
+
+    send(room, 'p1', { type: 'restart' });
+    assert.equal(phase(room, T0), 'lobby');
+    assert.equal(room.game.mode, 'teams');
+    assert.deepEqual(room.game.teams.map(t => t.players.length), [0, 0]);
+
+    // A fourth joins: now it's teams
+    join(room, 'Dewi', undefined, T0, () => 'p4');
+    assert.equal(send(room, 'p1', { type: 'start' }).error, 'Zet spelers in minstens 2 teams');
+    ['p1', 'p2', 'p3', 'p4'].forEach((id, i) => send(room, 'p1', { type: 'assignPlayer', playerId: id, teamIndex: i % 2 }));
+    assert.deepEqual(send(room, 'p1', { type: 'start' }), { changed: true });
+    assert.equal(room.game.mode, 'teams');
+});

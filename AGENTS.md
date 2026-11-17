@@ -318,7 +318,11 @@ send what the player did. The host is just a player with extra rights.
    adds and removes teams (minimum 2), picks the target score and starts
    ("Begin spel": teams nobody was put in are left out; at least 2 teams
    must remain, each with ≥ 2 players; anyone without a team watches).
-   Everyone else sees the lobby update live.
+   Everyone else sees the lobby update live. **With 2 or 3 people in the
+   room** (`playsWithoutTeams()`) there are no teams to share out: the
+   lobby explains the duo or trio instead, and "Begin spel" makes it
+   from everyone in the room (`setPlayers()`, see Modes). A fourth person
+   joining switches the lobby back to teams.
 3. **Turns**: the same three screens. Describer: "Start beurt", the
    words, tap the ring to stop, tick, "Klaar". Everyone else: who's up,
    the ring without words, then the same cards read-only with the ticks
@@ -339,7 +343,9 @@ send what the player did. The host is just a player with extra rights.
    with the ticks kept, the describer's phone plays `bruh`, and the next
    "Klaar" counts straight away — one veto per turn. All on the same
    `PostTurn.vue` screen (`review-left`, `vetoed`, `can-veto` props);
-   one phone has no review.
+   one phone has no review. Who may veto is `canVeto()`: anyone seated
+   outside the team that's up — in a trio the player sitting the turn
+   out, in a duo nobody, so a duo's "Klaar" counts straight away.
 4. **Post game**: everyone sees the winner; only the host gets "Begin
    opnieuw" (`restart()`, same teams, back to the lobby).
 
@@ -422,7 +428,13 @@ screen straight away; the server's state follows within moments.
   turn; back in time, they get the words again. If not, the host scores
   the turn. If they're gone at their next "Start beurt", the host can
   remove them from the game.
-- Someone joining mid-game watches until the host gives them a seat
+- A duo or trio needs everyone: someone joining watches until the next
+  game ("Je kijkt mee en doet mee in het volgende spel"; the host can't
+  seat them), and a seated player leaving or being removed stops the
+  game ("Het spel is gestopt: Bram doet niet meer mee"). "Begin opnieuw"
+  after a duo or trio, and every such stop, leaves the lobby with two
+  empty teams, so the next start is made from whoever is there.
+- Someone joining a team game mid-game watches until the host gives them a seat
   ("Nieuwe spelers" near the top of the host's handoff screen, the
   `pre-turn-top` slot); they join the end of
   that team's rotation. Seats can't move between teams mid-game.

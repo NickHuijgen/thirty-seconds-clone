@@ -73,6 +73,11 @@ export const REVIEW_SECONDS = 5;
 // The server keeps the review open this much longer (ms), so a veto tapped as the bar empties still arrives
 export const REVIEW_GRACE = 500;
 
+// Two or three people in a room play without teams: a duo or a trio (models/Game.ts, Mode)
+export function playsWithoutTeams(memberCount: number): boolean {
+    return memberCount === 2 || memberCount === 3;
+}
+
 export const MAX_MEMBERS = 20;
 export const MAX_NAME_LENGTH = 20;
 
