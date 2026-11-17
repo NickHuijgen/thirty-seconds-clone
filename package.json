@@ -10,7 +10,8 @@
     "test": "node --test \"test/*.test.ts\"",
     "verify": "npm run check && npm run check:server && npm test && npm run build",
     "check:server": "wrangler types server/worker-configuration.d.ts && tsc -p server/tsconfig.json",
-    "test:online": "node --test test/online.e2e.ts"
+    "test:online": "node --test test/online.e2e.ts",
+    "bots": "node scripts/bots.ts"
   },
   "dependencies": {
     "vue": "^3.5.44",

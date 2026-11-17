@@ -13,6 +13,76 @@ forwards `/api` and `/ws` to it — so the page and its WebSocket share
 one origin, like in production. Rooms created in development live in
 `.wrangler/state/`.
 
+For a real phone on the same Wi-Fi, start it with `npm run dev -- --host`
+and open the network address it prints (`http://192.168.….:5173`). That's
+plain `http`, so the screen wake lock doesn't work there; everything else
+does.
+
+### Bots: playing online on your own
+
+Online play needs 2–20 phones. `scripts/bots.ts` (`npm run bots`) fills
+the room with **bot players** so one person — or an agent — can play a
+whole game: you take one seat, the bots take the rest.
+
+```
+npm run dev                         # first, in the background
+npm run bots                        # 3 bots + you: a team game
+npm run bots -- --bots 2            # 2 bots + you: a trio
+npm run bots -- --bots 1            # 1 bot + you: a duo
+npm run bots -- --help              # every option
+```
+
+It creates a room, prints its link (`Room ABCD: open
+http://localhost:5173/online/ABCD`), and waits for you to join. Five
+seconds later the host bot starts the game; with 4 or more players it
+first puts everyone in two teams, alternating in the order they joined
+(with 3 bots and you: Anna & Cas against Bram & you).
+
+**What a bot is.** A Node WebSocket client that joins at `/ws/<code>`
+and sends exactly the messages a phone sends (`server/protocol.ts`). The
+server can't tell it from a phone, so bots exercise the real rules,
+timing, review and veto. They decide from the latest `state` only
+(checked every 0.3 s), and do each step once per turn number. A bot
+never sees the words of a running turn — the server doesn't send them
+to anyone but the describer.
+
+**What they do:**
+
+| When | The bots |
+|---|---|
+| Their own turn | "Start beurt" after 3 s, stop after 5 s, tick 2 words, "Klaar". |
+| Their turn was vetoed | Untick the last word and "Klaar" again (that one counts straight away). |
+| Your turn, in the review | Veto if a bot may (another team; the trio's player sitting out; never in a duo): every other turn of yours with `--veto alternate` (default), or `always`/`never`. |
+| A win | The host bot starts a new game 15 s later. |
+| The game stopped (someone left) | Back in the lobby, the host bot starts again once enough players are there. |
+| The dev server restarts | They reconnect to their own seat (rooms survive in `.wrangler/state/`). They stop when the room is gone or they're removed. |
+
+**Options:** `--humans N` waits for N people (default 1; `0` starts a
+bots-only game straight away — join afterwards to watch), `--code ABCD`
+joins an existing room (if a person is host there, the bots wait for
+them to start), `--base URL` points them at the network address for a
+real phone, `--score` (10 by default, for short games), `--delay`.
+Bots only play against a local or private-network address: never
+production, where every room counts against the Free plan.
+
+**For agents.** Run the dev server and the bots in the background, read
+the room code from the bots' first output lines, and stop both when
+you're done (`pkill -f scripts/bots.ts`). Then join in the browser at
+phone width (390×844 `<iframe>` on a page of the same origin, see
+Verification) and play the human seat. Remember:
+
+- The browser stores one online seat per origin (`thirty-seconds-online`
+  in `localStorage`): clear it, or use a private window, before joining
+  another room, or the page drops you into the previous one.
+- The review after "Klaar" is only `REVIEW_SECONDS` long: tap Veto from
+  a script (`[...document.querySelectorAll('button')].find(b =>
+  b.innerText.includes('Veto')).click()`), not after a screenshot.
+- A browser tool that stops long scripts: start a watcher in the page
+  (an async loop writing to `window`) and read it back later.
+- Bots log what they do with a timestamp, plus every notice the server
+  sends ("Anna heeft een veto ingediend"); their log is the quickest way
+  to see what happened.
+
 ## Documentation
 
 Consult these before working on related tasks:
@@ -171,8 +241,8 @@ Places that have to say the same thing or it silently breaks. Marked
 - Project layout is flat, without `src/`: `index.html` and `main.ts`
   (router and mount) at the root, then `app.vue`, `pages/`,
   `components/`, `composables/`, `models/`, `utils/`, `assets/`,
-  `public/`, plus `server/` (the Worker) and `pwa/` (the service
-  worker).
+  `public/`, plus `server/` (the Worker), `pwa/` (the service
+  worker) and `scripts/` (development tools: the bots).
 - Code style: 4-space indent in `.ts`, 2-space in `.vue`; `snake_case`
   for model fields (`max_score`, `active_team_index`), `camelCase` for
   methods. There is no linter or formatter configured.
@@ -789,10 +859,12 @@ Before calling a change done:
   within 200 ms, a refresh mid-turn gets the same seat and the words
   again, ticks arrive live, a veto and the re-score, late joiner, kick, host handover,
   an unknown room, and that only `/api` and `/ws` reach the Worker.
-  Then play online in the browser: several phone-sized windows (separate
-  browser profiles or private windows — one browser shares the stored
-  seat), and ideally two real phones on the same Wi-Fi against the dev
-  server's network address.
+  Then play online in the browser, with bots in the other seats
+  (`npm run bots`, see Bots — `--bots 1`/`2` for a duo or trio): your
+  turn, theirs, a veto each way. For two people of your own, use several
+  phone-sized windows (separate browser profiles or private windows — one
+  browser shares the stored seat), and ideally two real phones on the
+  same Wi-Fi against the dev server's network address.
 - Play a full game in the browser at phone width (~390px) — if the
   browser window won't shrink that far, load the app in a 390×844
   `<iframe>` on a page of the same origin — with
