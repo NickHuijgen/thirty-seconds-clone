@@ -5,8 +5,11 @@
   >
     <Screen>
       <div class="pt-4 text-center">
-        <p class="text-lg font-semibold text-white/80">
-          {{ online ? team.name : `${team.name} is aan de beurt` }}
+        <p
+            v-if="heading"
+            class="text-lg font-semibold text-white/80"
+        >
+          {{ heading }}
         </p>
         <p
             v-if="!online || isDescriber"
@@ -45,15 +48,15 @@
       <dl class="mt-6 space-y-2 text-white/90">
         <div>
           <dt class="text-sm font-semibold text-white/70">
-            Deze spelers mogen raden
+            {{ guessers.length === 1 ? 'Mag raden' : 'Deze spelers mogen raden' }}
           </dt>
-          <dd>{{ team.inactivePlayers().map(player => player.name).join(', ') }}</dd>
+          <dd>{{ guessers.map(player => player.name).join(', ') }}</dd>
         </div>
         <div>
           <dt class="text-sm font-semibold text-white/70">
             Volgende beurt
           </dt>
-          <dd>{{ game.nextUpTeam().activePlayer()?.name }} van {{ game.nextUpTeam().name }}</dd>
+          <dd>{{ nextUp }}</dd>
         </div>
       </dl>
 
@@ -147,6 +150,30 @@ const props = defineProps({
 const emit = defineEmits(['start-turn']);
 
 const team = computed(() => props.game.activeTeam());
+
+// A duo's team is just the player, already named below
+const heading = computed(() => {
+  if (props.game.mode === 'duo') {
+    return null;
+  }
+
+  return props.online || props.game.mode === 'trio' ? team.value.name : `${team.value.name} is aan de beurt`;
+});
+
+const guessers = computed(() => props.game.guessers());
+
+const nextUp = computed(() => {
+  const { team: next, player } = props.game.nextTurn();
+
+  if (props.game.mode === 'duo') {
+    return player?.name;
+  }
+  if (props.game.mode === 'trio') {
+    return `${player?.name} legt uit aan ${next.players.find(p => p !== player)?.name}`;
+  }
+
+  return `${player?.name} van ${next.name}`;
+});
 
 // Only online play records the words of a turn
 const lastTurn = computed(() => {

@@ -6,7 +6,7 @@
           30 Seconds
         </h1>
         <p class="mt-1 text-gray-600">
-          Wie en welk team begint wordt willekeurig bepaald
+          {{ count === 4 ? 'Wie en welk team begint wordt willekeurig bepaald' : 'Wie begint wordt willekeurig bepaald' }}
         </p>
       </header>
 
@@ -31,7 +31,82 @@
         </span>
       </button>
 
-      <section aria-labelledby="teams-heading">
+      <fieldset class="mb-8">
+        <legend class="mb-3 text-lg font-bold">
+          Hoeveel spelers?
+        </legend>
+
+        <div class="grid grid-cols-3 gap-2">
+          <label
+              v-for="option in COUNT_OPTIONS"
+              :key="option.value"
+          >
+            <input
+                v-model="count"
+                type="radio"
+                name="player_count"
+                class="peer sr-only"
+                :value="option.value"
+                @change="chooseCount(game)"
+            >
+            <span class="flex h-12 items-center justify-center rounded-xl bg-white text-lg font-semibold shadow-sm peer-checked:bg-emerald-700 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-700">
+              {{ option.label }}
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- Two or three players: just names; the game makes the teams -->
+      <section
+          v-if="count < 4"
+          aria-labelledby="players-heading"
+      >
+        <h2
+            id="players-heading"
+            class="mb-1 text-lg font-bold"
+        >
+          Spelers
+        </h2>
+        <p class="mb-3 text-gray-600">
+          {{ count === 2
+            ? 'Om de beurt leg je uit en raadt de ander. Je scoort met je eigen beurten.'
+            : 'Jullie spelen in drie duo\'s, elk met een eigen score. Wie niet meedoet is even stil.' }}
+        </p>
+
+        <div class="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
+          <div
+              v-for="index in count"
+              :key="index"
+          >
+            <label
+                :for="`${inputId}-${index}`"
+                class="mb-1 block text-sm font-semibold text-gray-600"
+            >
+              Speler {{ index }}
+            </label>
+            <input
+                v-model="names[index - 1]"
+                type="text"
+                name="player_name"
+                :id="`${inputId}-${index}`"
+                placeholder="Speler naam"
+                class="h-11 w-full rounded-xl border bg-gray-50 px-3"
+            >
+          </div>
+        </div>
+
+        <p
+            v-if="count === 3"
+            class="mt-3 text-gray-600"
+        >
+          Duo's: {{ pairs.join(' · ') }}
+        </p>
+      </section>
+
+      <section
+          v-else
+          aria-labelledby="teams-heading"
+      >
         <h2
             id="teams-heading"
             class="mb-3 text-lg font-bold"
@@ -103,6 +178,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, useId } from "vue";
 import Game from "~/models/Game";
 import TeamSetup from "~/components/TeamSetup.vue";
 import Team from "~/models/Team";
@@ -114,7 +190,14 @@ import { PAGE_SETUP } from "~/utils/teamColours";
 
 const SCORE_OPTIONS = [10, 25, 50, 100];
 
-defineProps({
+// 2 and 3 are the duo and trio modes; 4 stands for "4 or more", in teams
+const COUNT_OPTIONS = [
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+  { value: 4, label: '4+' },
+];
+
+const props = defineProps({
   game: {
     type: Game,
     required: true,
@@ -124,6 +207,32 @@ defineProps({
 const emit = defineEmits(['resume-game']);
 
 usePageColour(() => PAGE_SETUP);
+
+const inputId = useId();
+
+// Back on this screen after "Begin opnieuw", the same mode and names again
+const count = ref(props.game.mode === 'duo' ? 2 : props.game.mode === 'trio' ? 3 : 4);
+const names = ref(
+  props.game.mode === 'duo' ? props.game.teams.map(team => team.players[0]!.name)
+    : props.game.mode === 'trio' ? props.game.trioPlayers().map(player => player.name)
+    : ['Speler 1', 'Speler 2', 'Speler 3'],
+);
+while (names.value.length < 3) {
+  names.value.push(`Speler ${names.value.length + 1}`);
+}
+
+const players = computed(() => names.value.slice(0, count.value).map((name, i) => name.trim() || `Speler ${i + 1}`));
+const pairs = computed(() => players.value.map((name, i) => `${name} & ${players.value[(i + 1) % players.value.length]}`));
+
+// Teams again after a duo or trio: the usual two teams of two to start from
+function chooseCount(game: Game) {
+  if (count.value === 4 && game.mode !== 'teams') {
+    game.mode = 'teams';
+    game.teams = [];
+    addTeam(game);
+    addTeam(game);
+  }
+}
 
 function addTeam(game: Game) {
   const team = new Team('Team ' + (game.teamCount() + 1));
@@ -141,6 +250,9 @@ function removeTeam(game: Game, team: Team) {
 }
 
 function finishSetup(game: Game) {
+  if (count.value < 4) {
+    game.setPlayers(players.value.map(name => new Player(name)));
+  }
   game.setUp();
 }
 </script>

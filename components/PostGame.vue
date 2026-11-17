@@ -14,7 +14,7 @@
           emoji_events
         </span>
         <h1 class="mt-2 text-4xl font-extrabold break-words motion-safe:animate-bounce-in [animation-delay:150ms]">
-          {{ game.winning_team?.name }} heeft gewonnen!
+          {{ game.winning_team?.name }} {{ game.mode === 'trio' ? 'hebben' : 'heeft' }} gewonnen!
         </h1>
       </div>
 

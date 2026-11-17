@@ -200,7 +200,10 @@ default teams of two players ("Team 1", "Speler 1" …) and switches
 between three screens:
 
 1. **Setup** (`GameSetup.vue` → `TeamSetup.vue` → `PlayerSetup.vue`,
-   `RemoveButton.vue`) — while `!is_in_progress && !is_finished`. Add or
+   `RemoveButton.vue`) — while `!is_in_progress && !is_finished`. First
+   "Hoeveel spelers?": 2, 3 or 4+. With 2 or 3 it's just name fields,
+   and "Begin nieuw spel" calls `setPlayers()` before `setUp()` (see
+   Modes). With 4+, add or
    rename teams and players (minimum 2 teams, 2 players per team — the
    remove button only shows above that), pick the target score (10, 25,
    50, 100 — radio buttons styled as four tap targets). "Begin nieuw spel" calls `setUp()`: clears the saved game
@@ -232,11 +235,40 @@ between three screens:
    resets scores, and goes back to setup.
 
 Turn order: teams are shuffled once at setup and play in index order;
-within a team, players rotate through their shuffled index. Both
+within a team, players rotate through their shuffled index (a trio has
+its own order, see Modes). Both
 `activeTeam()` and `activePlayer()` look objects up by their `index`
 field, **not** by array position — so sorting or reordering the arrays is
 safe (the leaderboard sorts a copy), but the indexes must stay `0…n-1`
 and unique.
+
+### Modes
+
+`Game.mode` says how the players are split up; it's saved, and old
+saves load as `'teams'`. `setPlayers(players)` builds the teams for
+the two small modes from names (and online ids):
+
+- **`'teams'`** — 4 or more players in teams of 2 or more, as set up.
+- **`'duo'`** — 2 players, each a team of one named after them. They
+  alternate (the normal team order does that); the describer's team
+  scores, so each player scores on their own turns. The guesser is the
+  *other* team's player — hence `guessers()` instead of a team's
+  `inactivePlayers()`.
+- **`'trio'`** — 3 players in three pairs ("Anna & Bram", "Bram & Cas",
+  "Cas & Anna"), each a team with its own score; the first pair to the
+  target wins ("… hebben gewonnen!"). Every player is in two teams.
+  The fixed team order would make someone describe twice in a row, so
+  `setUp()` calls `shuffleTrio()` (random player order, team *i* =
+  players *i* and *i* + 1, each pair keeping its name and colour) and
+  `goNextTurn()` follows `TRIO_TURNS`: A → B, B → C, C → A, A → C,
+  B → A, C → B. Everyone describes every third turn, each pair plays
+  once each way. Where it is in that order follows from the active
+  team and player, so nothing extra is saved.
+
+Screens ask the model, not the mode, wherever they can: `guessers()`
+for who may guess, `nextTurn()` for "Volgende beurt". A duo's handoff
+and turn screens leave out the team name (it's the player's own name)
+and say who guesses instead.
 
 Sounds: `startTurn()` loads both sounds inside the "Start beurt" tap and
 plays `vine-boom` from the timer later. Keep the loading inside the tap:

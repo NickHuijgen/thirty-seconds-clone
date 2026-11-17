@@ -14,7 +14,8 @@
               class="truncate text-sm font-semibold"
               :class="style.text"
           >
-            {{ team.name }}
+            <!-- A duo's team is just the describer: say who guesses instead -->
+            {{ game.mode === 'duo' ? `${game.guessers()[0]?.name} raadt` : team.name }}
           </p>
           <p class="truncate text-lg font-bold">
             {{ team.activePlayer()?.name }} omschrijft

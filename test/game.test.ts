@@ -3,6 +3,7 @@ import { test, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import Game, { CATEGORIES, STORAGE_KEY, TURN_SECONDS } from '../models/Game.ts';
 import Team, { TEAM_COLOURS } from '../models/Team.ts';
+import Player from '../models/Player.ts';
 import { installStorage, newGame, playTurn, recordingSounds, wordLists, type MemoryStorage } from './helpers.ts';
 
 let storage: MemoryStorage;
@@ -260,7 +261,7 @@ test('the save holds only what loadSaved reads back', () => {
 
     const saved = JSON.parse(storage.getItem(STORAGE_KEY)!);
     assert.deepEqual(Object.keys(saved).sort(), [
-        'active_team_index', 'available', 'expires_at', 'is_finished', 'is_in_progress', 'max_score', 'teams',
+        'active_team_index', 'available', 'expires_at', 'is_finished', 'is_in_progress', 'max_score', 'mode', 'teams',
     ]);
     assert.ok(!('words' in saved), 'the full word lists are not saved');
 });
@@ -424,4 +425,142 @@ test('the last turn score is kept for the leaderboard, but not saved or restored
 
     game.restart();
     assert.equal(game.last_turn, null);
+});
+
+// Two or three players without teams, like the setup screen's 2 and 3
+function smallGame(names: string[], maxScore = 50): Game {
+    const game = new Game(maxScore, wordLists());
+    game.setPlayers(names.map(name => new Player(name)));
+
+    return game;
+}
+
+// "describer → guesser" for the next `count` turns, scoring `score` each
+function turnsOf(game: Game, count: number, score = 0): string[] {
+    const turns: string[] = [];
+    for (let i = 0; i < count; i++) {
+        turns.push(`${game.activeTeam().activePlayer()!.name} → ${game.guessers().map(p => p.name).join(', ')}`);
+        playTurn(game, score);
+    }
+
+    return turns;
+}
+
+test('two players: a team of one each, named after them, taking turns to describe to the other', () => {
+    const game = smallGame(['Anna', 'Bram']);
+    assert.equal(game.mode, 'duo');
+    assert.deepEqual(game.teams.map(t => [t.name, t.players.map(p => p.name)]), [['Anna', ['Anna']], ['Bram', ['Bram']]]);
+    assert.notEqual(game.teams[0]!.colour, game.teams[1]!.colour);
+
+    game.setUp();
+    const turns = turnsOf(game, 4);
+    assert.ok(['Anna → Bram', 'Bram → Anna'].includes(turns[0]!));
+    assert.deepEqual(turns, [turns[0], turns[1], turns[0], turns[1]], 'they alternate');
+    assert.notEqual(turns[0], turns[1]);
+    // Four turns played: the first player is up, the second is next
+    assert.equal(game.nextTurn().player!.name, turns[1]!.split(' → ')[0]);
+});
+
+test('two players: the describer scores, and wins on their own points', () => {
+    const game = smallGame(['Anna', 'Bram'], 10);
+    game.setUp();
+    const first = game.activeTeam();
+
+    playTurn(game, 5);
+    playTurn(game, 1);
+    playTurn(game, 5);
+
+    assert.equal(first.score, 10);
+    assert.equal(game.winning_team, first);
+    assert.equal(game.winning_team!.name, first.players[0]!.name);
+});
+
+test('three players: three pairs, and everyone describes every third turn, each pair once each way', () => {
+    const game = smallGame(['Anna', 'Bram', 'Cas']);
+    assert.equal(game.mode, 'trio');
+    assert.deepEqual(game.teams.map(t => t.name), ['Anna & Bram', 'Bram & Cas', 'Cas & Anna']);
+    assert.ok(game.teams.every(t => t.players.length === 2));
+
+    for (let round = 0; round < 5; round++) {
+        game.restart();
+        game.setUp();
+        const [a, b, c] = game.trioPlayers().map(p => p.name);
+        assert.deepEqual([a, b, c].sort(), ['Anna', 'Bram', 'Cas']);
+        assert.deepEqual(game.teams.map(t => `${t.name}/${t.colour}`).sort(), ['Anna & Bram/emerald', 'Bram & Cas/sky', 'Cas & Anna/amber'],
+            'every pair keeps its name and colour');
+
+        const turns = turnsOf(game, 12);
+        assert.deepEqual(turns.slice(0, 6), [`${a} → ${b}`, `${b} → ${c}`, `${c} → ${a}`, `${a} → ${c}`, `${b} → ${a}`, `${c} → ${b}`]);
+        assert.deepEqual(turns.slice(6), turns.slice(0, 6), 'and round again');
+
+        const describers = turns.map(t => t.split(' → ')[0]);
+        assert.ok(describers.every((d, i) => i === 0 || d !== describers[i - 1]), 'nobody describes twice in a row');
+        assert.equal(new Set(turns.slice(0, 6)).size, 6, 'every pair once each way');
+    }
+});
+
+test('three players: the pair scores together, and its two players win', () => {
+    const game = smallGame(['Anna', 'Bram', 'Cas'], 3);
+    game.setUp();
+    const first = game.activeTeam();
+
+    playTurn(game, 2);
+    assert.equal(first.score, 2);
+    // The pair's other turn is the fifth (A → B, then B → A)
+    playTurn(game, 0);
+    playTurn(game, 0);
+    playTurn(game, 0);
+    assert.equal(game.activeTeam(), first);
+    playTurn(game, 1);
+
+    assert.equal(game.winning_team, first);
+    assert.equal(game.is_finished, true);
+});
+
+test('the next turn shown on the handoff screen is the one that comes', () => {
+    for (const names of [['Anna', 'Bram'], ['Anna', 'Bram', 'Cas']]) {
+        const game = smallGame(names);
+        game.setUp();
+        for (let i = 0; i < 7; i++) {
+            const next = game.nextTurn();
+            playTurn(game, 0);
+            assert.equal(game.activeTeam(), next.team);
+            assert.equal(game.activeTeam().activePlayer(), next.player);
+        }
+    }
+
+    const teams = newGame({ teams: 3 });
+    teams.setUp();
+    const next = teams.nextTurn();
+    playTurn(teams, 0);
+    assert.equal(teams.activeTeam(), next.team);
+});
+
+test('a duo or trio resumes in its mode, at the same point in the turn order', () => {
+    for (const names of [['Anna', 'Bram'], ['Anna', 'Bram', 'Cas']]) {
+        const game = smallGame(names);
+        game.setUp();
+        playTurn(game, 1);
+        playTurn(game, 2);
+        const expected = turnsOf(smallGameFrom(game), 6);
+
+        const resumed = new Game(50, wordLists());
+        resumed.loadSaved();
+        assert.equal(resumed.mode, game.mode);
+        assert.deepEqual(turnsOf(resumed, 6), expected);
+    }
+});
+
+// A copy through toSaved/fromSaved, so playing it doesn't touch the original
+function smallGameFrom(game: Game): Game {
+    return Game.fromSaved(game.toSaved(), wordLists());
+}
+
+test('saves from before the modes load as teams', () => {
+    const game = newGame();
+    game.setUp();
+    const saved = game.toSaved();
+    delete saved.mode;
+
+    assert.equal(Game.fromSaved(saved, wordLists()).mode, 'teams');
 });

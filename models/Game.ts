@@ -20,6 +20,16 @@ const SAVE_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
 
 const silent: LoadSound = () => ({ play() {} });
 
+// How the players are split up. 'teams': teams of 2 or more, as set up. 'duo': two players taking turns,
+// each a team of one, scoring on their own turns. 'trio': three players in three pairs (A & B, B & C,
+// C & A), each pair a team with its own score.
+export type Mode = 'teams' | 'duo' | 'trio';
+
+// The trio's turns, as [team index, player index], built by setUp(): team i is players i and i + 1 of
+// the three, in that order. A → B, B → C, C → A, then A → C, B → A, C → B: everyone describes every
+// third turn, and every pair plays once each way.
+const TRIO_TURNS = [[0, 0], [1, 0], [2, 0], [2, 1], [0, 1], [1, 1]] as const;
+
 // The score of the turn that just ended. Online play adds the words and which of them were guessed,
 // so every phone can check the result on the next handoff screen.
 export interface LastTurn {
@@ -33,6 +43,8 @@ export interface LastTurn {
 export interface SavedGame {
     expires_at: number;
     max_score: number;
+    // Missing in saves from before duo and trio existed: those were teams
+    mode?: Mode;
     teams: {
         name: string;
         score: number;
@@ -50,6 +62,7 @@ export interface SavedGame {
 
 export default class Game {
     max_score: number;
+    mode: Mode = 'teams';
     teams: Team[] = [];
     is_in_progress: boolean = false;
     active_team_index: number = 0;
@@ -110,11 +123,42 @@ export default class Game {
         this.teams = this.teams.filter(t => t !== team);
     }
 
+    // Two or three players without teams of their own: makes the teams they play in, and the mode.
+    // Each player's id carries over (online), so in a trio the same id is in two teams.
+    public setPlayers(players: Player[]): void {
+        this.teams = [];
+        this.mode = players.length === 2 ? 'duo' : 'trio';
+
+        const teams = this.mode === 'duo'
+            ? players.map(player => [player])
+            : players.map((player, i) => [player, players[(i + 1) % players.length]!]);
+
+        teams.forEach((members, index) => {
+            const team = new Team(members.map(player => player.name).join(' & '));
+            team.index = index;
+            members.forEach((player, i) => {
+                const seat = new Player(player.name, player.id);
+                seat.index = i;
+                team.addPlayer(seat);
+            });
+            this.addTeam(team);
+        });
+    }
+
+    // The players of a trio, in turn order: everyone once (each is in two teams)
+    public trioPlayers(): Player[] {
+        return [...this.teams].sort((a, b) => a.index - b.index).map(team => team.players.find(p => p.index === 0)!);
+    }
+
     public setUp(): void {
         if (!this.is_restarted) {
             Game.clearSaved();
         }
-        this.generateTeamIndexes();
+        if (this.mode === 'trio') {
+            this.shuffleTrio();
+        } else {
+            this.generateTeamIndexes();
+        }
 
         for (const category of CATEGORIES) {
             this.available[category] = [...this.words[category]];
@@ -212,10 +256,73 @@ export default class Game {
         });
     }
 
+    // A trio in a random order: rebuilt so team i is players i and i + 1, the shape TRIO_TURNS expects.
+    // Each pair keeps its name and colour.
+    public shuffleTrio(): void {
+        const players = this.trioPlayers();
+        for (let i = players.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [players[i], players[j]] = [players[j]!, players[i]!];
+        }
+
+        const before = this.teams;
+        this.teams = players.map((player, i) => {
+            const partner = players[(i + 1) % players.length]!;
+            const pair = before.find(team => [player, partner].every(p => team.players.some(q => q.name === p.name && q.id === p.id)))!;
+            const team = new Team(pair.name);
+            team.colour = pair.colour;
+            team.index = i;
+            team.addPlayer(new Player(player.name, player.id));
+            team.addPlayer(new Player(partner.name, partner.id));
+            team.players.forEach((p, index) => p.index = index);
+
+            return team;
+        });
+        this.active_team_index = 0;
+    }
+
     public goNextTurn(): void {
+        if (this.mode === 'trio') {
+            const [team, player] = this.nextTrioTurn();
+            this.active_team_index = team;
+            this.teams.find(t => t.index === team)!.active_player_index = player;
+
+            return;
+        }
+
         this.activeTeam().goNextTurn();
 
         this.active_team_index = (this.active_team_index + 1) % this.teams.length;
+    }
+
+    public nextTrioTurn(): readonly [number, number] {
+        const current = TRIO_TURNS.findIndex(([team, player]) =>
+            team === this.active_team_index && player === this.activeTeam().active_player_index);
+
+        return TRIO_TURNS[(current + 1) % TRIO_TURNS.length]!;
+    }
+
+    // Who may guess this turn: the describer's teammates, or in a duo the other player
+    public guessers(): Player[] {
+        if (this.mode === 'duo') {
+            return this.teams.filter(team => team !== this.activeTeam()).flatMap(team => team.players);
+        }
+
+        return this.activeTeam().inactivePlayers();
+    }
+
+    // Who's up after this turn, and with which team
+    public nextTurn(): { team: Team, player: Player | undefined } {
+        if (this.mode === 'trio') {
+            const [teamIndex, playerIndex] = this.nextTrioTurn();
+            const team = this.teams.find(t => t.index === teamIndex)!;
+
+            return { team, player: team.players.find(p => p.index === playerIndex) };
+        }
+
+        const team = this.nextUpTeam();
+
+        return { team, player: team.activePlayer() };
     }
 
     public activeTeam(): Team {
@@ -275,6 +382,7 @@ export default class Game {
         return {
             expires_at: Date.now() + SAVE_DURATION,
             max_score: this.max_score,
+            mode: this.mode,
             teams: this.teams.map(team => ({
                 name: team.name,
                 score: team.score,
@@ -311,6 +419,7 @@ export default class Game {
         this.active_words = [];
         this.last_turn = null;
         this.max_score = saved.max_score;
+        this.mode = saved.mode ?? 'teams';
         this.teams = saved.teams.map((team: any, index: number) => {
             const newTeam = new Team(team.name);
             // Saves from before team colours existed get one by position
