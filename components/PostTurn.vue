@@ -5,11 +5,22 @@
     <Screen :scrollable="false">
       <header>
         <h1 class="text-3xl font-extrabold">
-          Tijd is om!
+          {{ reviewing ? 'Klopt het?' : vetoed ? 'Veto!' : 'Tijd is om!' }}
         </h1>
         <p class="mt-1 text-gray-600">
-          {{ canScore ? 'Selecteer de woorden die geraden zijn' : `${scorerName} telt de punten…` }}
+          {{ subtitle }}
         </p>
+        <!-- The review's countdown, draining smoothly: updated every 200 ms, with a transition just as long -->
+        <div
+            v-if="reviewing"
+            class="mt-3 h-2 overflow-hidden rounded-full bg-gray-200"
+            aria-hidden="true"
+        >
+          <div
+              class="h-full rounded-full bg-red-600 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-linear"
+              :style="{ width: `${reviewLeft! * 100}%` }"
+          />
+        </div>
       </header>
 
       <!-- min-h-0 lets the cards shrink to fit short phones; the screen never scrolls -->
@@ -27,7 +38,7 @@
                 ? 'border-green-500 bg-green-100 motion-safe:animate-pop'
                 : 'border-transparent bg-white'"
               :aria-pressed="guessed.includes(index)"
-              :disabled="!canScore"
+              :disabled="!canScore || reviewing"
               @click="emit('toggle-word', index)"
           >
             <span
@@ -50,7 +61,32 @@
       </ul>
 
       <template
-          v-if="canScore"
+          v-if="reviewing && canVeto"
+          #action
+      >
+        <ActionButton
+            class="bg-red-700 text-white"
+            @click="emit('veto')"
+        >
+          <span
+              class="material-icons"
+              aria-hidden="true"
+          >
+            thumb_down
+          </span>
+          Veto
+        </ActionButton>
+      </template>
+      <template
+          v-else-if="reviewing"
+          #action
+      >
+        <p class="flex h-14 items-center justify-center font-semibold text-gray-600">
+          {{ guessed.length }} geraden
+        </p>
+      </template>
+      <template
+          v-else-if="canScore"
           #action
       >
         <ActionButton
@@ -74,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
+import { computed, type PropType } from "vue";
 import Game, { CATEGORIES } from "~/models/Game";
 import { PAGE_GREY } from "~/utils/teamColours";
 import Screen from "~/components/Screen.vue";
@@ -82,7 +118,7 @@ import ActionButton from "~/components/ActionButton.vue";
 import { CATEGORY_INFO } from "~/utils/categories";
 import { usePageColour } from "~/composables/usePageColour";
 
-defineProps({
+const props = defineProps({
   game: {
     type: Game,
     required: true,
@@ -101,9 +137,39 @@ defineProps({
     type: String,
     default: '',
   },
+  // Online: how much of the review after "Klaar" is left (1 to 0), while the other teams can veto;
+  // null outside it
+  reviewLeft: {
+    type: Number as PropType<number | null>,
+    default: null,
+  },
+  // This turn was vetoed: the describer scores again, and that counts straight away
+  vetoed: {
+    type: Boolean,
+    default: false,
+  },
+  canVeto: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits<{ 'toggle-word': [index: number], 'finish-turn': [] }>();
+const emit = defineEmits<{ 'toggle-word': [index: number], 'finish-turn': [], 'veto': [] }>();
+
+const reviewing = computed(() => props.reviewLeft !== null);
+
+const subtitle = computed(() => {
+  if (reviewing.value) {
+    return props.canVeto ? 'Niet eens met de punten? Geef een veto.' : 'De andere teams kunnen nog een veto geven…';
+  }
+  if (props.vetoed) {
+    return props.canScore
+      ? 'Selecteer opnieuw de woorden die geraden zijn. Dit telt meteen.'
+      : `${props.scorerName} telt de punten opnieuw…`;
+  }
+
+  return props.canScore ? 'Selecteer de woorden die geraden zijn' : `${props.scorerName} telt de punten…`;
+});
 
 usePageColour(() => PAGE_GREY);
 

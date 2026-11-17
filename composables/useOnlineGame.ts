@@ -1,8 +1,8 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import Game, { TURN_SECONDS } from '~/models/Game';
-import { clockOffset, secondsLeft, type ClockSample } from '~/utils/clock';
+import { clockOffset, fractionLeft, secondsLeft, type ClockSample } from '~/utils/clock';
 import {
-    CLOSE_KICKED, CLOSE_LEFT, CLOSE_ROOM_GONE, type ClientMessage, type RoomView, type ServerMessage,
+    CLOSE_KICKED, CLOSE_LEFT, CLOSE_ROOM_GONE, REVIEW_GRACE, REVIEW_SECONDS, type ClientMessage, type RoomView, type ServerMessage,
 } from '~/server/protocol';
 
 // Where this phone remembers its seat, so a refresh or a locked screen puts it back in the room.
@@ -67,6 +67,9 @@ export function useOnlineGame() {
     const error = ref<string | null>(null);
     // The game the screens show. Rebuilt from every state; the countdown updates its turn_timer in place.
     const game = ref<Game>(new Game(25, Game.emptyWordLists()));
+    // How much of the review after "Klaar" is left, from 1 to 0 (the bar), against the server's clock;
+    // null when there's no review. It reaches 0 REVIEW_GRACE before the server ends the review.
+    const reviewLeft = ref<number | null>(null);
 
     let socket: WebSocket | null = null;
     let code = '';
@@ -212,6 +215,11 @@ export function useOnlineGame() {
     // The countdown: whole seconds against the server's clock. The server ends the turn itself; when the
     // ring reaches 0 first, the scoring screen shows straight away and the server's state follows.
     function tick(): void {
+        const reviewEndsAt = state.value?.review_ends_at ?? null;
+        reviewLeft.value = reviewEndsAt === null
+            ? null
+            : fractionLeft(reviewEndsAt - REVIEW_GRACE, Date.now(), offset, REVIEW_SECONDS * 1000);
+
         const endsAt = state.value?.ends_at;
 
         if (endsAt === null || endsAt === undefined) {
@@ -308,5 +316,5 @@ export function useOnlineGame() {
         ws?.close();
     });
 
-    return { state, game, playerId, status, error, isHost, isDescriber, connect, send, leave, showError };
+    return { state, game, reviewLeft, playerId, status, error, isHost, isDescriber, connect, send, leave, showError };
 }

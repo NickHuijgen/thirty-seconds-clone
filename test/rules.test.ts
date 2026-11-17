@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TURN_SECONDS } from '../models/Game.ts';
 import {
-    canScore, createRoom, describerId, disconnect, handle, isExpired, join, messagesFor, nextAlarm,
+    canScore, canVeto, createRoom, describerId, disconnect, handle, isExpired, join, messagesFor, nextAlarm,
     parseMessage, phase, ROOM_LIFETIME, settle, START_DELAY, view, type RoomData,
 } from '../server/rules.ts';
-import { generateCode, MAX_MEMBERS, normaliseCode, type ClientMessage, type ServerMessage } from '../server/protocol.ts';
+import { generateCode, MAX_MEMBERS, normaliseCode, REVIEW_GRACE, REVIEW_SECONDS, type ClientMessage, type ServerMessage } from '../server/protocol.ts';
 import { wordLists } from './helpers.ts';
 
 const words = wordLists();
@@ -38,6 +38,16 @@ function startedRoom(): RoomData {
     assert.deepEqual(send(room, 'p1', { type: 'start' }), { changed: true });
 
     return room;
+}
+
+// "Klaar", then the review runs out without a veto: the turn counts
+function finish(room: RoomData, scorer: string, now = T0) {
+    const result = send(room, scorer, { type: 'finishTurn', turn: room.turn }, now);
+    if (room.review_ends_at !== null) {
+        settle(room, room.review_ends_at, words);
+    }
+
+    return result;
 }
 
 function others(room: RoomData, id: string): string[] {
@@ -308,6 +318,9 @@ test('the describer ticks words live, idempotently, and the score comes from the
     assert.deepEqual(send(room, others(room, describer)[0]!, { type: 'setWord', turn, index: 2, guessed: true }), { changed: false });
 
     assert.deepEqual(send(room, describer, { type: 'finishTurn', turn }), { changed: true });
+    assert.equal(phase(room, T0), 'review');
+    assert.equal(room.game.teams.find(t => t.name === team.name)!.score, 0, 'nothing counts during the review');
+    settle(room, room.review_ends_at!, words);
     const scored = room.game.teams.find(t => t.name === team.name)!;
     assert.equal(scored.score, 2);
     assert.deepEqual(room.last_turn, { team_index: team.index, score: 2, words: turnWords, guessed: [0, 3] });
@@ -320,6 +333,105 @@ test('the describer ticks words live, idempotently, and the score comes from the
     assert.deepEqual(send(room, describer, { type: 'finishTurn', turn }), { changed: false });
 });
 
+// A turn ended and scored with `ticks`, the describer has tapped "Klaar": the review is running
+function reviewing(ticks: number[] = [0, 1]) {
+    const room = startedRoom();
+    const describer = describerId(room)!;
+    const team = room.game.teams.find(t => t.players.some(p => p.id === describer))!;
+    const teammate = team.players.find(p => p.id !== describer)!.id;
+    const opponents = room.game.teams.find(t => t !== team)!.players.map(p => p.id);
+    send(room, describer, { type: 'startTurn', turn: room.turn });
+    send(room, describer, { type: 'endTurnEarly', turn: room.turn });
+    for (const index of ticks) {
+        send(room, describer, { type: 'setWord', turn: room.turn, index, guessed: true });
+    }
+    send(room, describer, { type: 'finishTurn', turn: room.turn }, T0 + 1000);
+
+    return { room, describer, teammate, opponents, teamName: team.name };
+}
+
+test('the first "Klaar" starts the review: the ticks are locked, and the score counts when it runs out', () => {
+    const { room, describer, teamName } = reviewing();
+    const end = T0 + 1000 + REVIEW_SECONDS * 1000 + REVIEW_GRACE;
+    const turn = room.turn;
+
+    assert.equal(room.review_ends_at, end);
+    assert.equal(phase(room, T0 + 1000), 'review');
+    assert.equal(view(room, T0 + 1000).review_ends_at, end);
+    assert.equal(nextAlarm(room), end, 'the alarm scores the turn even if every phone is closed');
+
+    // No more ticking, and no second "Klaar" from a double tap
+    assert.deepEqual(send(room, describer, { type: 'setWord', turn, index: 2, guessed: true }, T0 + 1500), { changed: false });
+    assert.deepEqual(send(room, describer, { type: 'finishTurn', turn }, T0 + 1500), { changed: false });
+    assert.equal(room.turn, turn);
+
+    assert.equal(settle(room, end - 1, words), false);
+    assert.equal(settle(room, end, words), true);
+    assert.equal(room.game.teams.find(t => t.name === teamName)!.score, 2);
+    assert.equal(room.turn, turn + 1);
+    assert.equal(room.review_ends_at, null);
+    assert.equal(phase(room, end), 'pre-turn');
+});
+
+test('only another team vetoes, once, during the review; the describer scores again and that counts', () => {
+    const { room, describer, teammate, opponents, teamName } = reviewing();
+    const turn = room.turn;
+    const spectator = 'p5';
+    join(room, 'Eva', undefined, T0, () => spectator);
+
+    assert.equal(canVeto(room, describer), false);
+    assert.equal(canVeto(room, teammate), false);
+    assert.equal(canVeto(room, spectator), false);
+    assert.ok(opponents.every(id => canVeto(room, id)));
+
+    for (const id of [describer, teammate, spectator]) {
+        assert.deepEqual(send(room, id, { type: 'veto', turn }, T0 + 1500), { changed: false }, id);
+    }
+    assert.deepEqual(send(room, opponents[0]!, { type: 'veto', turn: turn + 1 }, T0 + 1500), { changed: false }, 'wrong turn');
+
+    const name = room.members.find(m => m.id === opponents[0])!.name;
+    assert.deepEqual(send(room, opponents[0]!, { type: 'veto', turn }, T0 + 1500), { changed: true, notice: `${name} heeft een veto ingediend` });
+    assert.equal(phase(room, T0 + 1500), 'scoring');
+    assert.equal(room.review_ends_at, null);
+    assert.equal(view(room, T0 + 1500).vetoed, true);
+    assert.deepEqual(room.guessed, [0, 1], 'the ticks stay for the describer to correct');
+    assert.equal(nextAlarm(room), room.last_activity + ROOM_LIFETIME);
+
+    // A second veto (the other opponent, or a double tap) does nothing
+    assert.deepEqual(send(room, opponents[1]!, { type: 'veto', turn }, T0 + 1600), { changed: false });
+
+    send(room, describer, { type: 'setWord', turn, index: 1, guessed: false }, T0 + 2000);
+    // The second "Klaar" is final: no review
+    assert.deepEqual(send(room, describer, { type: 'finishTurn', turn }, T0 + 3000), { changed: true });
+    assert.equal(phase(room, T0 + 3000), 'pre-turn');
+    assert.equal(room.game.teams.find(t => t.name === teamName)!.score, 1);
+    assert.equal(room.vetoed, false, 'the next turn gets its own veto');
+});
+
+test('a veto that arrives after the review ran out changes nothing', () => {
+    const { room, opponents, teamName } = reviewing();
+    const turn = room.turn;
+
+    assert.deepEqual(send(room, opponents[0]!, { type: 'veto', turn }, room.review_ends_at!), { changed: true }, 'only the score');
+    assert.equal(room.vetoed, false);
+    assert.equal(room.turn, turn + 1);
+    assert.equal(room.game.teams.find(t => t.name === teamName)!.score, 2);
+});
+
+test('the winning turn has its review too: a veto can take the win away', () => {
+    const { room, describer, opponents } = reviewing([0]);
+    room.game.max_score = 10;
+    room.game.teams.forEach(t => t.score = 9);
+    const turn = room.turn;
+
+    send(room, opponents[0]!, { type: 'veto', turn }, T0 + 1500);
+    send(room, describer, { type: 'setWord', turn, index: 0, guessed: false }, T0 + 2000);
+    send(room, describer, { type: 'finishTurn', turn }, T0 + 2000);
+
+    assert.equal(phase(room, T0 + 2000), 'pre-turn');
+    assert.ok(room.game.teams.every(t => t.score === 9));
+});
+
 test('turns pass between teams and players like on one phone', () => {
     const room = startedRoom();
     const seen: string[] = [];
@@ -329,7 +441,7 @@ test('turns pass between teams and players like on one phone', () => {
         seen.push(describer);
         send(room, describer, { type: 'startTurn', turn: room.turn });
         send(room, describer, { type: 'endTurnEarly', turn: room.turn });
-        send(room, describer, { type: 'finishTurn', turn: room.turn });
+        finish(room, describer);
     }
 
     assert.equal(new Set(seen).size, 4, 'all four players described once');
@@ -349,6 +461,8 @@ test('reaching the target finishes the game; the host restarts with the same tea
     send(room, describer, { type: 'endTurnEarly', turn: room.turn });
     send(room, describer, { type: 'setWord', turn: room.turn, index: 0, guessed: true });
     send(room, describer, { type: 'finishTurn', turn: room.turn });
+    assert.equal(phase(room, T0), 'review', 'no winner before the review is over');
+    settle(room, room.review_ends_at!, words);
 
     assert.equal(phase(room, T0), 'finished');
     assert.equal(describerId(room), null);
@@ -381,7 +495,7 @@ test('the host scores the turn when the describer is gone, but not while they ar
     assert.equal(canScore(room, scorer), true);
 
     assert.deepEqual(send(room, scorer, { type: 'setWord', turn: room.turn, index: 2, guessed: true }), { changed: true });
-    assert.deepEqual(send(room, scorer, { type: 'finishTurn', turn: room.turn }), { changed: true });
+    assert.deepEqual(finish(room, scorer), { changed: true });
     assert.equal(room.last_turn!.score, 1);
 });
 
@@ -460,15 +574,19 @@ test('a player who leaves before their turn: the next teammate is up', () => {
     assert.deepEqual(send(room, describerId(room)!, { type: 'startTurn', turn: room.turn }), { changed: true });
 });
 
-test('a describer who leaves mid-turn or while scoring: that turn does not count, the next team is up', () => {
-    for (const during of ['turn', 'scoring'] as const) {
+test('a describer who leaves mid-turn, while scoring or during the review: that turn does not count, the next team is up', () => {
+    for (const during of ['turn', 'scoring', 'review'] as const) {
         const room = gameWith([3, 3]);
         const leaver = describerId(room)!;
         const team = teamNameOf(room, leaver)!;
         send(room, leaver, { type: 'startTurn', turn: room.turn });
-        if (during === 'scoring') {
+        if (during !== 'turn') {
             send(room, leaver, { type: 'endTurnEarly', turn: room.turn });
             send(room, leaver, { type: 'setWord', turn: room.turn, index: 0, guessed: true });
+        }
+        if (during === 'review') {
+            // Still under way when they leave, at T0 + 5000
+            send(room, leaver, { type: 'finishTurn', turn: room.turn }, T0 + 4000);
         }
         const turn = room.turn;
 
@@ -479,6 +597,7 @@ test('a describer who leaves mid-turn or while scoring: that turn does not count
         assert.deepEqual(room.active_words, []);
         assert.deepEqual(room.guessed, []);
         assert.equal(room.ends_at, null);
+        assert.equal(room.review_ends_at, null);
         assert.ok(room.game.teams.every(t => t.score === 0), 'the turn scored nothing');
         assert.notEqual(teamNameOf(room, describerId(room)!), team, 'the other team is up');
         assert.equal(nextAlarm(room), room.last_activity + ROOM_LIFETIME, 'no alarm for a turn that is gone');
@@ -544,7 +663,7 @@ test('fewer than 4 players: the game stops and everyone is back in the lobby, wi
     send(room, describer, { type: 'startTurn', turn: room.turn });
     send(room, describer, { type: 'endTurnEarly', turn: room.turn });
     send(room, describer, { type: 'setWord', turn: room.turn, index: 0, guessed: true });
-    send(room, describer, { type: 'finishTurn', turn: room.turn });
+    finish(room, describer);
 
     const big = room.game.teams.find(t => t.players.length === 3)!;
     assert.equal(send(room, big.players[0]!.id, { type: 'leave' }).notice, undefined, '4 players: on we go');

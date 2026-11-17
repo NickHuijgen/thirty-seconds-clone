@@ -22,7 +22,9 @@ export type ClientMessage =
     | { type: 'startTurn', turn: number }
     | { type: 'endTurnEarly', turn: number }
     | { type: 'setWord', turn: number, index: number, guessed: boolean }
-    | { type: 'finishTurn', turn: number };
+    | { type: 'finishTurn', turn: number }
+    // Anyone in another team, during the review after the first "Klaar": the describer scores again
+    | { type: 'veto', turn: number };
 
 export type ServerMessage =
     | { type: 'welcome', playerId: string, state: RoomView }
@@ -54,6 +56,10 @@ export interface RoomView {
     active_words: string[];
     // Indexes into active_words the describer has ticked as guessed
     guessed: number[];
+    // Server time (epoch ms) at which the review after "Klaar" ends and the score counts; null otherwise
+    review_ends_at: number | null;
+    // This turn has had its one veto: the next "Klaar" scores straight away
+    vetoed: boolean;
     last_turn: LastTurn | null;
 }
 
@@ -61,6 +67,11 @@ export interface RoomView {
 export const CLOSE_ROOM_GONE = 4404;
 export const CLOSE_KICKED = 4403;
 export const CLOSE_LEFT = 4410;
+
+// How long the other teams can veto the ticks after "Klaar": the bar on the phones empties in this time
+export const REVIEW_SECONDS = 5;
+// The server keeps the review open this much longer (ms), so a veto tapped as the bar empties still arrives
+export const REVIEW_GRACE = 500;
 
 export const MAX_MEMBERS = 20;
 export const MAX_NAME_LENGTH = 20;

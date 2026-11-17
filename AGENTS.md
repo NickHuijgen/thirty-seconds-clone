@@ -245,7 +245,9 @@ mobile browsers only allow audio that a user gesture started. Online,
 the same tap (`pages/online.vue`); ten phones booming a few milliseconds
 apart would sound like an echo. That also means no other phone needs a
 tap to unlock audio. The other phones still vibrate (`useTurnHaptics()`,
-Android).
+Android). A vetoed describer hears `bruh`, loaded in that same tap
+(the meme clip from https://www.myinstants.com/en/instant/bruh/, which
+states no licence).
 
 Haptics: `useTurnHaptics()` (in `pages/game.vue`) vibrates at 5 seconds
 left and when the turn ends. Android only — iOS Safari has no
@@ -293,6 +295,19 @@ send what the player did. The host is just a player with extra rights.
    "Raad mee!" during the turn; everyone else (other teams, spectators)
    gets "Jij moet stil zijn" and a big "Ssst!", so nobody calls out the
    answers for them.
+   **Veto.** The describer's first "Klaar" doesn't score yet: for
+   `REVIEW_SECONDS` (5) everyone sees "Klopt het?" with a bar that drains
+   smoothly (`fractionLeft()`; the server waits `REVIEW_GRACE` longer, so
+   a tap as it empties still counts),
+   and players in the *other* teams get a red "Veto" button (one tap, no
+   confirm — a wrong veto only costs a re-score). Nobody vetoes: the
+   score counts when the time runs out (the server's alarm, like the end
+   of a turn), and only then can someone win. Someone vetoes: everyone
+   gets "Anna heeft een veto ingediend", the turn goes back to scoring
+   with the ticks kept, the describer's phone plays `bruh`, and the next
+   "Klaar" counts straight away — one veto per turn. All on the same
+   `PostTurn.vue` screen (`review-left`, `vetoed`, `can-veto` props);
+   one phone has no review.
 4. **Post game**: everyone sees the winner; only the host gets "Begin
    opnieuw" (`restart()`, same teams, back to the lobby).
 
@@ -309,10 +324,11 @@ sends a new state — that's how the other teams check the score. After
 ### The server checks everything
 
 Every action is checked for who sent it and the phase (`phase()`:
-lobby, pre-turn, turn, scoring, finished). Host only: teams, target
+lobby, pre-turn, turn, scoring, review, finished). Host only: teams, target
 score, start, restart, kick. Describer only: `startTurn`,
 `endTurnEarly`, `setWord`, `finishTurn` — the host may score instead
-only while the describer is disconnected. Turn actions carry the turn
+only while the describer is disconnected. Other teams only, during the
+review: `veto` (`canVeto()`); no ticking during the review. Turn actions carry the turn
 number, so a late or repeated message never acts on the next turn;
 `setWord` sets rather than toggles, so a repeat changes nothing. The
 score is the server's own count of ticks, never a number from a phone.
@@ -327,12 +343,13 @@ fix get a Dutch `error` (shown as a red pill).
 | `ping {t0}` | Clock sync, answered straight away. |
 | `leave` | "Verlaat lobby": out of the room for good (see Leaving). |
 | `setMaxScore`, `addTeam`, `removeTeam`, `renameTeam`, `assignPlayer {playerId, teamIndex}`, `kick`, `start`, `restart` | Host. `teamIndex` is the position in `game.teams`. |
-| `startTurn`, `endTurnEarly`, `setWord {index, guessed}`, `finishTurn` (all with `turn`) | Describer. |
+| `startTurn`, `endTurnEarly`, `setWord {index, guessed}`, `finishTurn` (all with `turn`) | Describer. The first `finishTurn` starts the review; after a veto it scores. |
+| `veto {turn}` | Another team, during the review. |
 
 | Server → phone | |
 |---|---|
 | `welcome {playerId, state}` | After `join`; the phone stores `{code, playerId, name}`. |
-| `state {…}` | After every change, to everyone: `RoomView` — members, teams and scores (without the remaining word lists), `turn`, `describer_id`, `ends_at`, `active_words`, `guessed`, `last_turn`. |
+| `state {…}` | After every change, to everyone: `RoomView` — members, teams and scores (without the remaining word lists), `turn`, `describer_id`, `ends_at`, `active_words`, `guessed`, `review_ends_at`, `vetoed`, `last_turn`. |
 | `words {turn, words}` | Only to the describer, while their turn runs. |
 | `pong {t0, server}` | |
 | `error {message}` | Dutch, shown as a red pill: a refused action, or a notice to everyone (a team or the game stopped). After "Lobby niet gevonden"/"Deze lobby is verlopen" the socket closes with `4404`, after being removed by the host with `4403`, and the phone goes back to the join screen. A `leave` closes that player's other tabs with `4410`. |
@@ -350,7 +367,8 @@ server − (t0 + t1) / 2`, keeping the one with the shortest round trip.
 The server ends the turn itself with the Durable Object's alarm, so it
 ends even if every phone is closed. A Durable Object has **one** alarm,
 so it's always set to whichever comes first: the end of the turn or the
-room's expiry (`nextAlarm()`), and `alarm()` works out which it was.
+room's expiry (`nextAlarm()`) — or the end of a review, which scores
+the turn — and `alarm()` works out which it was.
 Alarms can fire a little late, so every message first runs `settle()`,
 which ends a turn whose `ends_at` has passed — the describer's first
 tick is never refused. A phone whose ring reaches 0 shows the scoring
@@ -400,7 +418,7 @@ for someone who left:**
   — including one that's now a player short — so the host can share
   the players out again. No team is dropped on the way to a stop.
 - Otherwise the game goes on:
-  - their own turn, running or being scored, doesn't count (no points,
+  - their own turn, running, being scored or in its review, doesn't count (no points,
     `turn` + 1 so late messages are ignored), and the next team is up;
   - their team closes ranks; the next player in its order is up;
   - a team left with fewer than 2 players stops: it drops out of the
@@ -707,8 +725,9 @@ Before calling a change done:
     and its handover, who may do what in which phase, words only to the
     describer during the turn and to everyone after, live and repeated
     ticks, the score from the server's ticks, the timer's end (alarm or
-    the next message), turn order, late joiners, kicking, expiry, room
-    codes, and a room's round trip through storage.
+    the next message), the review and the veto (who, when, once, a veto
+    that comes too late, a win taken away), turn order, late joiners,
+    kicking, expiry, room codes, and a room's round trip through storage.
   - `test/clock.test.ts` — the clock offset and the countdown.
   - `test/game.test.ts` also covers `toSaved`/`fromSaved`, player ids
     in the save, and that `beginTurn`/`endTurn`/`scoreTurn` have no
@@ -724,7 +743,7 @@ Before calling a change done:
   one turn runs to the end of the timer (so it takes ~45 s), words never
   reach the other phones during the turn, every phone hears the end
   within 200 ms, a refresh mid-turn gets the same seat and the words
-  again, ticks arrive live and score, late joiner, kick, host handover,
+  again, ticks arrive live, a veto and the re-score, late joiner, kick, host handover,
   an unknown room, and that only `/api` and `/ws` reach the Worker.
   Then play online in the browser: several phone-sized windows (separate
   browser profiles or private windows — one browser shares the stored

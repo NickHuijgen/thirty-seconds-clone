@@ -4,7 +4,7 @@
 import Game, { TURN_SECONDS, type LastTurn, type SavedGame, type WordLists } from '../models/Game.ts';
 import Team from '../models/Team.ts';
 import Player from '../models/Player.ts';
-import { MAX_MEMBERS, MAX_NAME_LENGTH, type ClientMessage, type RoomView, type ServerMessage } from './protocol.ts';
+import { MAX_MEMBERS, MAX_NAME_LENGTH, REVIEW_GRACE, REVIEW_SECONDS, type ClientMessage, type RoomView, type ServerMessage } from './protocol.ts';
 
 // A room is deleted this long after anything last happened in it, like a saved game on one phone
 export const ROOM_LIFETIME = 4 * 60 * 60 * 1000;
@@ -36,9 +36,13 @@ export interface RoomData {
     turn: number;
     ends_at: number | null;
     guessed: number[];
+    // The first "Klaar" doesn't score yet: the other teams get REVIEW_SECONDS to veto the ticks, and
+    // the score counts when this passes. One veto per turn: after it, "Klaar" scores straight away.
+    review_ends_at: number | null;
+    vetoed: boolean;
 }
 
-export type Phase = 'lobby' | 'pre-turn' | 'turn' | 'scoring' | 'finished';
+export type Phase = 'lobby' | 'pre-turn' | 'turn' | 'scoring' | 'review' | 'finished';
 
 export interface Result {
     // Shown to the sender, in Dutch
@@ -77,6 +81,8 @@ export function createRoom(code: string, now: number, words: WordLists): RoomDat
         turn: 0,
         ends_at: null,
         guessed: [],
+        review_ends_at: null,
+        vetoed: false,
     };
 }
 
@@ -109,6 +115,9 @@ export function phase(room: RoomData, now: number): Phase {
     if (!room.game.is_in_progress) {
         return 'lobby';
     }
+    if (room.review_ends_at !== null) {
+        return 'review';
+    }
     if (room.is_applying_score) {
         return 'scoring';
     }
@@ -119,9 +128,19 @@ export function phase(room: RoomData, now: number): Phase {
     return 'pre-turn';
 }
 
-// Ends a turn whose time is up. The alarm does this on time, but an alarm can fire a little late:
-// every message runs this first, so the describer's first tick isn't refused in the meantime.
+// Ends a turn whose time is up, and scores a turn whose review is over. The alarm does this on time,
+// but an alarm can fire a little late: every message runs this first, so the describer's first tick
+// isn't refused and a late veto doesn't reopen a turn that already counts.
 export function settle(room: RoomData, now: number, words: WordLists): boolean {
+    if (room.review_ends_at !== null) {
+        if (now < room.review_ends_at) {
+            return false;
+        }
+        scoreTurn(room, words);
+
+        return true;
+    }
+
     if (room.ends_at === null || room.is_applying_score || now < room.ends_at) {
         return false;
     }
@@ -132,6 +151,28 @@ export function settle(room: RoomData, now: number, words: WordLists): boolean {
     room.ends_at = null;
 
     return true;
+}
+
+// The turn counts: the score is the ticks the server holds, never a number from a phone
+function scoreTurn(room: RoomData, words: WordLists): void {
+    const game = loadGame(room, words);
+    const turnWords = [...game.active_words];
+    game.scoreTurn(room.guessed.length);
+    game.last_turn = { ...game.last_turn!, words: turnWords, guessed: room.guessed };
+    game.active_words = [];
+    storeGame(room, game);
+    room.turn += 1;
+    room.ends_at = null;
+    room.guessed = [];
+    room.review_ends_at = null;
+    room.vetoed = false;
+}
+
+// Anyone playing in a team other than the one that's up
+export function canVeto(room: RoomData, playerId: string): boolean {
+    const team = room.game.teams.find(t => t.players.some(p => p.id === playerId));
+
+    return !!team && team.index !== room.game.active_team_index;
 }
 
 export function describerId(room: RoomData): string | null {
@@ -334,6 +375,8 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             room.turn += 1;
             room.ends_at = null;
             room.guessed = [];
+            room.review_ends_at = null;
+            room.vetoed = false;
 
             return CHANGED;
         }
@@ -347,6 +390,8 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             storeGame(room, game);
             room.ends_at = null;
             room.guessed = [];
+            room.review_ends_at = null;
+            room.vetoed = false;
 
             return CHANGED;
         }
@@ -360,6 +405,7 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             storeGame(room, game);
             room.ends_at = now + TURN_SECONDS * 1000 + START_DELAY;
             room.guessed = [];
+            room.vetoed = false;
 
             return CHANGED;
         }
@@ -397,18 +443,24 @@ function apply(room: RoomData, playerId: string, message: ClientMessage, now: nu
             if (current !== 'scoring' || message.turn !== room.turn || !canScore(room, playerId)) {
                 return NONE;
             }
-            const game = loadGame(room, words);
-            const turnWords = [...game.active_words];
-            // The score is the ticks the server holds, never a number from a phone
-            game.scoreTurn(room.guessed.length);
-            game.last_turn = { ...game.last_turn!, words: turnWords, guessed: room.guessed };
-            game.active_words = [];
-            storeGame(room, game);
-            room.turn += 1;
-            room.ends_at = null;
-            room.guessed = [];
+            if (room.vetoed) {
+                scoreTurn(room, words);
+            } else {
+                room.review_ends_at = now + REVIEW_SECONDS * 1000 + REVIEW_GRACE;
+            }
 
             return CHANGED;
+        }
+
+        case 'veto': {
+            if (current !== 'review' || message.turn !== room.turn || !canVeto(room, playerId)) {
+                return NONE;
+            }
+            room.review_ends_at = null;
+            room.vetoed = true;
+            const name = room.members.find(m => m.id === playerId)!.name;
+
+            return { changed: true, notice: `${name} heeft een veto ingediend` };
         }
 
         default:
@@ -479,7 +531,7 @@ function removeMember(room: RoomData, targetId: string, current: Phase, words: W
 
     if (team && !betweenGames) {
         const isActiveTeam = team.index === game.active_team_index;
-        const running = current === 'turn' || current === 'scoring';
+        const running = current === 'turn' || current === 'scoring' || current === 'review';
         const wasDescriber = targetId === describerId(room);
 
         removeFromTeam(team, targetId, false);
@@ -493,6 +545,8 @@ function removeMember(room: RoomData, targetId: string, current: Phase, words: W
             storeGame(room, game);
             room.ends_at = null;
             room.guessed = [];
+            room.review_ends_at = null;
+            room.vetoed = false;
 
             return finishRemoval(room, targetId, `Het spel is gestopt: minder dan ${MIN_PLAYERS} spelers`);
         }
@@ -507,6 +561,8 @@ function removeMember(room: RoomData, targetId: string, current: Phase, words: W
             game.turn_timer = 0;
             room.ends_at = null;
             room.guessed = [];
+            room.review_ends_at = null;
+            room.vetoed = false;
             // Anything still on its way about this turn is now out of date
             room.turn += 1;
         }
@@ -573,10 +629,14 @@ function removeFromTeam(team: Team, playerId: string, betweenGames: boolean): vo
     team.active_player_index %= team.players.length;
 }
 
-// When the Durable Object's single alarm should next go off: the end of the running turn, or the
-// moment the room expires, whichever comes first
+// When the Durable Object's single alarm should next go off: the end of the running turn or of the
+// review, or the moment the room expires, whichever comes first
 export function nextAlarm(room: RoomData): number {
     const expires = room.last_activity + ROOM_LIFETIME;
+
+    if (room.review_ends_at !== null) {
+        return Math.min(room.review_ends_at, expires);
+    }
 
     return room.ends_at !== null && !room.is_applying_score ? Math.min(room.ends_at, expires) : expires;
 }
@@ -600,6 +660,8 @@ export function view(room: RoomData, now: number): RoomView {
         is_applying_score: room.is_applying_score,
         active_words: running ? [] : room.active_words,
         guessed: room.guessed,
+        review_ends_at: room.review_ends_at,
+        vetoed: room.vetoed,
         last_turn: room.last_turn,
     };
 }

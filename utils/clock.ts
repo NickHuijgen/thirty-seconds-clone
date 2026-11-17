@@ -18,6 +18,11 @@ export function clockOffset(samples: ClockSample[]): number | null {
     return best ? best.server - (best.t0 + best.t1) / 2 : null;
 }
 
+// How much of a countdown is left, from 1 (all of it) to 0, for a bar that drains smoothly
+export function fractionLeft(endsAt: number, phoneNow: number, offset: number, totalMs: number): number {
+    return Math.min(1, Math.max(0, (endsAt - (phoneNow + offset)) / totalMs));
+}
+
 // Whole seconds left in the turn, for the timer ring: 30 while the start delay runs, 0 when it's over
 export function secondsLeft(endsAt: number, phoneNow: number, offset: number, total: number): number {
     const remaining = endsAt - (phoneNow + offset);

@@ -100,6 +100,10 @@ class Phone {
         return this.messages.flatMap(m => m.type === 'words' ? m.words : []);
     }
 
+    errors(): string[] {
+        return this.messages.flatMap(m => m.type === 'error' ? [m.message] : []);
+    }
+
     close(): void {
         this.ws.close();
     }
@@ -239,6 +243,21 @@ test('four phones play a game online', { timeout: 120_000 }, async (t) => {
         await new Promise(resolve => setTimeout(resolve, 200));
         assert.deepEqual(anna.state!.guessed, [0, 2]);
 
+        // "Klaar" starts the review: nothing counts yet
+        describer.send({ type: 'finishTurn', turn });
+        await Promise.all(phones.map(p => p.until(() => p.state!.review_ends_at !== null, 'review')));
+        assert.equal(anna.state!.turn, turn);
+
+        // Only another team vetoes; then the describer scores again, and that counts straight away
+        const teamOf = (p: Phone) => p.state!.game.teams.find(t => t.players.some(x => x.id === p.playerId))?.name;
+        const teammate = others.find(p => teamOf(p) === teamOf(describer))!;
+        const opponent = others.find(p => teamOf(p) !== teamOf(describer))!;
+        teammate.send({ type: 'veto', turn });
+        await new Promise(resolve => setTimeout(resolve, 200));
+        assert.equal(anna.state!.vetoed, false, 'a teammate can not veto');
+        opponent.send({ type: 'veto', turn });
+        await Promise.all(phones.map(p => p.until(() => p.state!.vetoed && p.state!.review_ends_at === null, 'vetoed')));
+        await Promise.all(phones.map(p => p.until(() => p.errors().includes(`${opponent.name} heeft een veto ingediend`), 'the veto notice')));
         describer.send({ type: 'finishTurn', turn });
         await Promise.all(phones.map(p => p.until(() => p.state!.turn === turn + 1, 'next turn')));
         assert.deepEqual(anna.state!.last_turn?.words, words);

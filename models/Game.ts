@@ -7,7 +7,7 @@ export type Category = typeof CATEGORIES[number];
 
 export type WordLists = Record<Category, string[]>;
 
-export type Sound = 'turn-start' | 'vine-boom';
+export type Sound = 'turn-start' | 'vine-boom' | 'bruh';
 
 // Returns a loaded sound that can be played later; injected so the game logic runs without a browser
 export type LoadSound = (sound: Sound) => { play(): void };

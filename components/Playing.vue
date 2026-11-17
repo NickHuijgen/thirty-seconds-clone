@@ -10,8 +10,12 @@
         :guessed="guessed"
         :can-score="canScore"
         :scorer-name="scorerName"
+        :review-left="reviewLeft"
+        :vetoed="vetoed"
+        :can-veto="canVeto"
         @toggle-word="index => emit('toggle-word', index)"
         @finish-turn="emit('finish-turn')"
+        @veto="emit('veto')"
     />
     <PreTurn
         v-else-if="game.turn_timer === 0"
@@ -76,6 +80,19 @@ defineProps({
     type: String,
     default: '',
   },
+  // Online only: the review after "Klaar", when the other teams can veto the ticks
+  reviewLeft: {
+    type: Number as PropType<number | null>,
+    default: null,
+  },
+  vetoed: {
+    type: Boolean,
+    default: false,
+  },
+  canVeto: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits<{
@@ -83,5 +100,6 @@ const emit = defineEmits<{
   'end-turn': [],
   'toggle-word': [index: number],
   'finish-turn': [],
+  'veto': [],
 }>();
 </script>

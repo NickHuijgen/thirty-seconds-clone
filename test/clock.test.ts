@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clockOffset, secondsLeft } from '../utils/clock.ts';
+import { clockOffset, fractionLeft, secondsLeft } from '../utils/clock.ts';
 
 test('the offset comes from the ping with the shortest round trip', () => {
     // The server is 5000 ms ahead. The slow ping (400 ms, all of it on the way back) would be 200 ms off.
@@ -30,4 +30,14 @@ test('seconds left counts down in whole seconds against server time', () => {
     assert.equal(secondsLeft(endsAt, 100_000 - 2000 - 1, offset, 30), 1);
     assert.equal(secondsLeft(endsAt, 100_000 - 2000, offset, 30), 0);
     assert.equal(secondsLeft(endsAt, 200_000, offset, 30), 0, 'never negative');
+});
+
+test('the review bar drains smoothly from full to empty, against the server clock', () => {
+    // Ends at server time 10 000 over 3000 ms; the phone's clock is 500 ms behind the server
+    assert.equal(fractionLeft(10_000, 6_500, 500, 3000), 1, 'full at the start');
+    assert.equal(fractionLeft(10_000, 8_000, 500, 3000), 0.5, 'not in whole seconds');
+    assert.equal(fractionLeft(10_000, 9_200, 500, 3000), 0.1);
+    assert.equal(fractionLeft(10_000, 9_500, 500, 3000), 0, 'empty at the end');
+    assert.equal(fractionLeft(10_000, 20_000, 500, 3000), 0);
+    assert.equal(fractionLeft(10_000, 0, 500, 3000), 1, 'never more than full');
 });

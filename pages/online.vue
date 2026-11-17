@@ -32,10 +32,14 @@
         :is-guesser="isGuesser"
         :can-score="canScore"
         :scorer-name="describer?.name ?? ''"
+        :review-left="reviewLeft"
+        :vetoed="state.vetoed"
+        :can-veto="canVeto"
         @start-turn="startTurn()"
         @end-turn="endTurn()"
         @toggle-word="toggleWord"
         @finish-turn="send({ type: 'finishTurn', turn: state.turn })"
+        @veto="send({ type: 'veto', turn: state.turn })"
     >
       <template #pre-turn-top>
         <div
@@ -162,7 +166,7 @@ import { loadSound } from "~/utils/sounds";
 const route = useRoute();
 const router = useRouter();
 
-const { state, game, playerId, status, error, isHost, isDescriber, connect, send, leave, showError } = useOnlineGame();
+const { state, game, reviewLeft, playerId, status, error, isHost, isDescriber, connect, send, leave, showError } = useOnlineGame();
 
 const busy = ref(false);
 const confirmKickDescriber = ref<InstanceType<typeof ConfirmDialog> | null>(null);
@@ -181,6 +185,13 @@ const seated = computed(() => new Set(state.value?.game.teams.flatMap(team => te
 const spectators = computed(() => state.value?.members.filter(m => !seated.value.has(m.id) && m.connected) ?? []);
 const isSpectator = computed(() => !!playerId.value && !seated.value.has(playerId.value));
 
+// Everyone in another team may veto the ticks while the review after "Klaar" runs (the server checks the same)
+const canVeto = computed(() => {
+  const team = state.value?.game.teams.find(t => t.players.some(p => p.id === playerId.value));
+
+  return !!reviewLeft.value && !!team && team.index !== state.value?.game.active_team_index;
+});
+
 // The describer's teammates: they're the ones guessing
 const isGuesser = computed(() => {
   const team = game.value.activeTeam();
@@ -191,10 +202,12 @@ const isGuesser = computed(() => {
 // Only the describer's phone plays the sounds (see AGENTS.md). Loaded in the "Start beurt" tap, because
 // mobile browsers only play audio that a tap started; the time-up boom plays later from the countdown.
 let timeUp: { play(): void } | null = null;
+let vetoed: { play(): void } | null = null;
 
 function startTurn() {
   loadSound('turn-start').play();
   timeUp = loadSound('vine-boom');
+  vetoed = loadSound('bruh');
   send({ type: 'startTurn', turn: state.value!.turn });
 }
 
@@ -208,6 +221,14 @@ watch(() => game.value.turn_timer, (seconds, previous) => {
   if (seconds === 1 && previous === 2 && isDescriber.value) {
     timeUp?.play();
     timeUp = null;
+  }
+});
+
+// Someone vetoed this turn's ticks: bruh, on the describer's phone only
+watch(() => state.value && { turn: state.value.turn, vetoed: state.value.vetoed }, (now, before) => {
+  if (now?.vetoed && before && !before.vetoed && now.turn === before.turn && isDescriber.value) {
+    vetoed?.play();
+    vetoed = null;
   }
 });
 

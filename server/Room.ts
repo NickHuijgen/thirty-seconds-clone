@@ -19,7 +19,13 @@ export class Room extends DurableObject<Env> {
 
     private async load(): Promise<RoomData | null> {
         if (this.room === undefined) {
-            this.room = (await this.ctx.storage.get<RoomData>('room')) ?? null;
+            const stored = await this.ctx.storage.get<RoomData>('room');
+            if (stored) {
+                // Rooms stored before the veto existed get its fields
+                stored.review_ends_at ??= null;
+                stored.vetoed ??= false;
+            }
+            this.room = stored ?? null;
         }
 
         return this.room;
